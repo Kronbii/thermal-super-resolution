@@ -37,10 +37,10 @@ This project implements an advanced **thermal super-resolution system** that tra
 
 | Metric | Value | Industry Standard | Status |
 |--------|-------|------------------|---------|
-| **PSNR** | 29.6 dB | >28 dB | ✅ **EXCELLENT** |
-| **SSIM** | 0.713 | >0.7 | ✅ **EXCELLENT** |
-| **Speed** | 250.9 FPS | 30 FPS | ✅ **REAL-TIME** |
-| **Scale Factor** | 4x | 2-4x | ✅ **MAXIMUM** |
+| **PSNR** | 29.6 dB | >28 dB |  **EXCELLENT** |
+| **SSIM** | 0.713 | >0.7 |  **EXCELLENT** |
+| **Speed** | 250.9 FPS | 30 FPS |  **REAL-TIME** |
+| **Scale Factor** | 4x | 2-4x |  **MAXIMUM** |
 
 ## 🛠️ Technical Stack
 
