@@ -1,6 +1,15 @@
 checkpoints/
 datasets/
 
+*before_after_[0-9][1-9]*
+*before_after_[1-9][0-9]*
+
+*thermal_enhanced_[0-9][1-9]*
+*thermal_enhanced_[1-9][0-9]*
+
+
+*performance_report.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
