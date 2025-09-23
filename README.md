@@ -6,7 +6,9 @@
 [![CUDA](https://img.shields.io/badge/CUDA-11.8%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **A state-of-the-art deep learning system that enhances thermal image resolution by 2x-4x using Information Multi-![alt text](image.png)
+> **A state-of-the-art deep learning system that enhances thermal image resolution by 2x-4x using Information Multi-Distillation Network (IMDN) with specialized thermal adaptations.**
+
+## 📸 **RESULTS**
 
 ### 🔥 **2x Scale Enhancement Results**
 
