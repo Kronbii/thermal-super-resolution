@@ -1,13 +1,11 @@
 checkpoints/
 datasets/
-ignore/
 
-*before_after_[0-9][1-9]*
-*before_after_[1-9][0-9]*
+*before_after_*
+!*before_after_00[0-9]*
 
-*thermal_enhanced_[0-9][1-9]*
-*thermal_enhanced_[1-9][0-9]*
-
+*thermal_enhanced_*
+!*thermal_enhanced_00[0-9]*
 
 *performance_report.txt
 
