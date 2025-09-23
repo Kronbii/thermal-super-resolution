@@ -7,7 +7,7 @@
 
 First thermal super-resolution system to achieve **34.2 dB PSNR** at **229+ FPS** using novel IMDN architecture with specialized thermal adaptations. Outperforms existing methods while maintaining real-time inference speeds.
 
-## Results
+## TL;DR: The Results
 
 | Result | Scale |
 |:---:|:---:|
