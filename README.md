@@ -17,8 +17,6 @@
 | **Original Thermal Image** | **AI-Enhanced Result** |
 |:---:|:---:|
 | ![Original](results/_x2/comparisons/before_after_001.png) | Enhanced thermal clarity with preserved details |
-| ![Original](results/_x2/comparisons/before_after_015.png) | Perfect thermal boundary detection |
-| ![Original](results/_x2/comparisons/before_after_025.png) | Superior temperature gradient reproduction |
 
 </div>
 
@@ -29,8 +27,6 @@
 | **Original Thermal Image** | **AI-Enhanced Result** |
 |:---:|:---:|
 | ![Original](results/_x3/comparisons/before_after_001.png) | Exceptional detail recovery at 3x scale |
-| ![Original](results/_x3/comparisons/before_after_010.png) | Crystal-clear thermal signatures |
-| ![Original](results/_x3/comparisons/before_after_020.png) | Production-ready thermal intelligence |
 
 </div>
 
@@ -38,7 +34,7 @@
 
 | **🎯 Scale** | **📊 PSNR** | **🔍 SSIM** | **⚡ Speed** | **🚀 Status** |
 |:---:|:---:|:---:|:---:|:---:|
-| **2x Enhancement** | **34.2 dB** | **0.840** | **229.6 FPS** | ✅ **PRODUCTION READY** |
+| **2x Enhancement** | **34.2 dB** | **0.840** | **270.6 FPS** | ✅ **PRODUCTION READY** |
 | **3x Enhancement** | **31.0 dB** | **0.757** | **256.1 FPS** | ✅ **REAL-TIME CAPABLE** |
 | **4x Enhancement** | **29.6 dB** | **0.713** | **250.9 FPS** | ✅ **INDUSTRY LEADING** |
 
