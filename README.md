@@ -6,55 +6,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-11.8%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **A state-of-the-art deep learning system that enhances thermal image resolution by 2x-4x using Information Multi-Distillation Network (IMDN) with specialized thermal adaptations.**
-
-## 🌟 **STUNNING RESULTS SHOWCASE**
-
-### 🚀 **INSTANT VISUAL IMPACT**
-*Transform blurry thermal images into crystal-clear, production-ready visuals*
-
-| **🔍 Original (Low-Res)** | **✨ AI-Enhanced (High-Res)** | **📊 Improvement** |
-|:---:|:---:|:---:|
-| *Blurry thermal signatures* | *Sharp, detailed thermal data* | **🎯 4x Resolution** |
-| 160×120 pixels | 640×480 pixels | **📈 16x More Detail** |
-| Limited object detection | Clear thermal boundaries | **🔍 Enhanced Visibility** |
-
-### 🏆 **PERFORMANCE BREAKTHROUGH**
-
-<div align="center">
-
-| **🎯 Scale** | **📊 PSNR** | **🔍 SSIM** | **⚡ Speed** | **🚀 Status** |
-|:---:|:---:|:---:|:---:|:---:|
-| **2x Enhancement** | **34.2 dB** | **0.840** | **229.6 FPS** | ✅ **PRODUCTION READY** |
-| **3x Enhancement** | **31.0 dB** | **0.757** | **256.1 FPS** | ✅ **REAL-TIME CAPABLE** |
-| **4x Enhancement** | **29.6 dB** | **0.713** | **250.9 FPS** | ✅ **INDUSTRY LEADING** |
-
-</div>
-
-### 💎 **REAL-WORLD IMPACT**
-
-```
-🔥 BEFORE: Pixelated, unclear thermal signatures
-   → Limited detection accuracy
-   → Poor object recognition  
-   → Unreliable thermal analysis
-
-✨ AFTER: Crystal-clear thermal details
-   → 95%+ detection accuracy improvement
-   → Perfect object boundaries
-   → Production-ready thermal intelligence
-```
-
-### 🎯 **IMMEDIATE APPLICATIONS**
-- **🚁 Autonomous Vehicles**: Enhanced thermal perception for night driving
-- **🏭 Industrial Monitoring**: Precise equipment temperature analysis  
-- **🛡️ Security Systems**: Superior thermal surveillance capabilities
-- **🏥 Medical Imaging**: High-resolution thermal diagnostics
-
----
-
-## 📸 **VISUAL RESULTS GALLERY**
-*See the dramatic transformation in real thermal images*
+> **A state-of-the-art deep learning system that enhances thermal image resolution by 2x-4x using Information Multi-![alt text](image.png)
 
 ### 🔥 **2x Scale Enhancement Results**
 
@@ -80,12 +32,19 @@
 
 </div>
 
-### 💎 **Key Visual Improvements**
-- **🔍 Sharp Thermal Boundaries**: Clean separation between temperature zones
-- **🌡️ Enhanced Temperature Gradients**: Smooth, natural thermal transitions  
-- **🎯 Preserved Fine Details**: No loss of critical thermal information
-- **⚡ Real-Time Processing**: 250+ FPS with this visual quality
-- **🏭 Production Ready**: Suitable for industrial deployment
+### 🏆 **Performance Metrics**
+
+| **🎯 Scale** | **📊 PSNR** | **🔍 SSIM** | **⚡ Speed** | **🚀 Status** |
+|:---:|:---:|:---:|:---:|:---:|
+| **2x Enhancement** | **34.2 dB** | **0.840** | **229.6 FPS** | ✅ **PRODUCTION READY** |
+| **3x Enhancement** | **31.0 dB** | **0.757** | **256.1 FPS** | ✅ **REAL-TIME CAPABLE** |
+| **4x Enhancement** | **29.6 dB** | **0.713** | **250.9 FPS** | ✅ **INDUSTRY LEADING** |
+
+### 🎯 **Applications**
+- **🚁 Autonomous Vehicles**: Enhanced thermal perception for night driving
+- **� Industrial Monitoring**: Precise equipment temperature analysis  
+- **🛡️ Security Systems**: Superior thermal surveillance capabilities
+- **� Medical Imaging**: High-resolution thermal diagnostics
 
 ---
 
