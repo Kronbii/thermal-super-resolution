@@ -1,5 +1,6 @@
 checkpoints/
 datasets/
+scripts/
 
 *before_after_*
 !*before_after_00[0-9]*
