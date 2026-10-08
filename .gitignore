@@ -217,3 +217,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Benchmark: local venv and downloaded evaluation data (never commit data or weights)
+.venv-bench/
+.bench-data/
+results/benchmark-quick.*
