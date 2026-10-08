@@ -277,11 +277,43 @@ def headline(results: dict) -> str:
     return txt + "."
 
 
+def _lat(sp: dict) -> str:
+    return f"{sp['model']['median_ms']:.1f} ms median ({sp['model']['fps']:.0f} FPS, batch 1)"
+
+
+def _prec(sp: dict) -> str:
+    return "fp16 autocast" if sp["precision"] == "fp16" else sp["precision"]
+
+
 def measurements(results: dict) -> str:
     h = _headline_numbers(results)
     if not h or not h["rows"]:
         return "_No results._"
     lines = [warning(results).strip()] if warning(results) else []
+    rows = {r["scale"]: r for r in h["rows"]}
+    gpu = (results["environment"].get("gpu") or "CPU").replace("NVIDIA GeForce ", "")
+    tiles = []
+    if 2 in rows:
+        r = rows[2]
+        tiles.append(
+            f"- **x2 PSNR**: {r['t']['psnr_mean']:.2f} dB (bicubic {r['b']['psnr_mean']:.2f} dB) "
+            "on 17 FLIR ADAS v2 frames, protocol v1.0"
+        )
+        sp = r["fp16"] or r["fp32"]
+        if sp:
+            tiles.append(f"- **x2 latency**: {_lat(sp)} for 320x256 -> 640x512, {_prec(sp)}, {gpu}")
+    if 4 in rows and (rows[4]["fp16"] or rows[4]["fp32"]):
+        sp = rows[4]["fp16"] or rows[4]["fp32"]
+        tiles.append(f"- **x4 latency**: {_lat(sp)} for 160x128 -> 640x512, {_prec(sp)}, {gpu}")
+    t = _q(results, "tno-lwir", 2, "imdn_thermal", "fp32")
+    b = _q(results, "tno-lwir", 2, "bicubic")
+    if t and b:
+        tiles.append(
+            f"- **Other cameras, x2**: {t['psnr_mean'] - b['psnr_mean']:+.2f} dB PSNR over "
+            "bicubic on 51 TNO thermal images"
+        )
+    if tiles:
+        lines += ["Suggested portfolio tiles (label: value, context):", "", *tiles, "", "All:", ""]
     lines += ["| Label | Value | Context |", "|:---|:---|:---|"]
     for r in h["rows"]:
         s = r["scale"]
@@ -396,11 +428,17 @@ def render_markdown(results: dict) -> str:
 # Figures from the README on main before this benchmark (commit 5a23feb). They are
 # quoted, never recomputed; see docs/claims-audit.md for where each came from.
 OLD = {
-    2: {"psnr": 34.2, "ssim": 0.840, "fps": "270.6 (table) / 229.6 (report)"},
-    3: {"psnr": 31.0, "ssim": 0.757, "fps": "256.1"},
-    4: {"psnr": 29.6, "ssim": 0.713, "fps": "250.9"},
+    2: {"psnr": "34.2", "ssim": "0.840", "fps": "270.6 (table) / 229.6 (report)"},
+    3: {"psnr": "31.0", "ssim": "0.757", "fps": "256.1"},
+    4: {
+        "psnr": "29.6",
+        "ssim": "0.713",
+        "fps": "250.9",
+        "note": "No x4 evaluation output exists in the repository, so how this figure "
+        "was produced is unknown.",
+    },
 }
-OLD_BICUBIC_X2 = {"psnr": 24.2, "ssim": 0.612}
+OLD_BICUBIC_X2 = {"psnr": "24.2", "ssim": "0.612"}
 
 
 def claims_table(results: dict) -> str:
@@ -411,6 +449,15 @@ def claims_table(results: dict) -> str:
         "| Figure | Old README | Measured now | Why they differ |",
         "|:---|:---|:---|:---|",
     ]
+    why_q = (
+        "Old: 1,100 unpublished validation frames at 640x512 that also picked the "
+        "checkpoint, no border crop, unquantised output. New: 17 committed frames, "
+        "protocol v1.0. Not the same images, so not directly comparable."
+    )
+    why_s = (
+        "Old timing used time.time() without torch.cuda.synchronize(), which measures "
+        "kernel launches, not GPU work."
+    )
     for s in _scales(results):
         t = _q(results, "repo17", s, "imdn_thermal", "fp32")
         b = _q(results, "repo17", s, "bicubic")
@@ -420,10 +467,9 @@ def claims_table(results: dict) -> str:
         lines.append(
             f"| x{s} PSNR / SSIM | {o['psnr']} dB / {o['ssim']} | {t['psnr_mean']:.2f} dB / "
             f"{t['ssim_mean']:.4f} (bicubic {b['psnr_mean']:.2f} dB / {b['ssim_mean']:.4f}) | "
-            "Old: 1,100 unpublished validation frames at 640x512 that also picked the "
-            "checkpoint, no border crop, unquantised output. New: 17 committed frames, "
-            "protocol v1.0. Not the same images, so not directly comparable. |"
+            f"{o.get('note', why_q)} |"
         )
+        why_q = "As above."
     b2 = _q(results, "repo17", 2, "bicubic")
     t2 = _q(results, "repo17", 2, "imdn_thermal", "fp32")
     if b2 and t2:
@@ -447,9 +493,9 @@ def claims_table(results: dict) -> str:
             now += f", fp16 {f16['model']['fps']:.0f} FPS"
         lines.append(
             f"| x{s} speed | {OLD[s]['fps']} FPS | {now} ({i[1]}x{i[0]} -> {o[1]}x{o[0]}, "
-            "forward only) | Old timing used time.time() without torch.cuda.synchronize(), "
-            "which measures kernel launches, not GPU work. |"
+            f"forward only) | {why_s} |"
         )
+        why_s = "As above."
     return "\n".join(lines)
 
 
