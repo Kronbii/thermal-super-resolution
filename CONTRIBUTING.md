@@ -37,15 +37,20 @@ the [PyTorch website](https://pytorch.org/) before running project scripts.
 
 ## Testing and Validation
 
-There is no formal CI test suite yet. Before opening a PR, run the most
-relevant scripts for your change and confirm they work locally.
-
-Examples:
+CI (`.github/workflows/ci.yml`) runs the pytest suite, ruff on `benchmark/`
+and `tests/`, a CPU smoke run of the benchmark and a check that README and
+docs match `results/benchmark.json`. Run the same locally before opening a PR:
 
 ```bash
-python RGB/test_IMDN.py
-python RGB/test_IMDN_AS.py
+pip install -r benchmark/requirements.txt
+ruff check benchmark tests && pytest
+python -m benchmark.report --check
 ```
+
+Numbers in README and docs are generated: change `benchmark/protocol.py` or
+rerun `python -m benchmark.run` and then `python -m benchmark.report`; do not
+edit the marked blocks by hand. For changes to the upstream RGB scripts, also
+run `python RGB/test_IMDN.py`.
 
 If your change touches real-time display or inference flow, include a short
 manual validation note in the PR description (what you ran, input used, and
