@@ -99,8 +99,11 @@ SPEED = {
     "trials": 5,
     "interleaving": "for trial: for scale: for precision (thermal drift hits all "
     "configurations alike); the 5 x 300 samples of a configuration are pooled",
+    "cooldown": "before every trial, wait until the GPU is at or below "
+    "cooldown_temp_c (at most cooldown_timeout_s) so trials start from the same "
+    "thermal state; start temperature and wait are recorded",
     "cooldown_temp_c": 60,
-    "cooldown_timeout_s": 600,
+    "cooldown_timeout_s": 300,
     "memory_format": "default contiguous NCHW; no TensorRT, CUDA graphs or torch.compile",
     "precisions": ("fp32", "fp16"),
     "fp32": "float32 weights and activations, TF32 disabled",

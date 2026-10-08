@@ -142,16 +142,16 @@ def measure_speed(
     warmup, iters, trials = cfg["warmup_iters"], cfg["timed_iters"], cfg["trials"]
     out_hw = P.QUICK["speed_output_hw"] if args.quick else P.SPEED_OUTPUT_HW
     telemetry: dict = {}
-    if device.type == "cuda" and not args.quick:
-        telemetry["cooldown"] = timing.wait_for_cooldown(
-            P.SPEED["cooldown_temp_c"], P.SPEED["cooldown_timeout_s"]
-        )
     nets = {}
     for scale in args.scale:
         method = models.thermal_imdn(scale, args.weights_dir, random_init=args.random_weights)
         nets[scale] = (method, models.prepare(method, device))
     samples: dict = {}
     for trial in range(trials):
+        if device.type == "cuda" and not args.quick:
+            telemetry[f"before_trial_{trial + 1}"] = timing.wait_for_cooldown(
+                P.SPEED["cooldown_temp_c"], P.SPEED["cooldown_timeout_s"]
+            )
         for scale, (_method, net) in nets.items():
             in_hw = (out_hw[0] // scale, out_hw[1] // scale)
             for prec in precisions:

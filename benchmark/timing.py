@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 
@@ -101,7 +102,9 @@ def gpu_telemetry() -> dict | None:
         return None
     vals = [v.strip() for v in out.strip().splitlines()[0].split(",")]
     keys = ["temp_c", "sm_clock", "sm_clock_max", "power_draw", "clock_limit_reasons"]
-    return dict(zip(keys, vals, strict=False))
+    tel = dict(zip(keys, vals, strict=False))
+    tel["cpu_loadavg_1m"] = round(os.getloadavg()[0], 2)  # other work on the machine
+    return tel
 
 
 def wait_for_cooldown(max_temp_c: int, timeout_s: float) -> dict:
