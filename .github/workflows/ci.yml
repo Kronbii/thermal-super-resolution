@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-cpu:
+    # No GPU and no weights in CI: tests use tiny inputs and a random-weight
+    # smoke run; the real numbers come from results/benchmark.json.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: benchmark/requirements.txt
+
+      - name: Install CPU-only PyTorch, then the pinned requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r benchmark/requirements.txt
+
+      - name: Lint (new code)
+        run: |
+          ruff check benchmark tests
+          ruff format --check benchmark tests
+
+      - name: Tests
+        run: pytest
+
+      - name: Benchmark smoke run (quick, CPU, random weights)
+        run: python -m benchmark.run --quick --device cpu --random-weights
+
+      - name: README and docs match results/benchmark.json
+        run: python -m benchmark.report --check
