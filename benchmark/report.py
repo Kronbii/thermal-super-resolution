@@ -21,7 +21,11 @@ from pathlib import Path
 from . import protocol as P
 
 RESULTS = P.REPO_ROOT / "results" / "benchmark.json"
-TARGETS = (P.REPO_ROOT / "README.md", P.REPO_ROOT / "docs" / "portfolio.md")
+TARGETS = (
+    P.REPO_ROOT / "README.md",
+    P.REPO_ROOT / "docs" / "portfolio.md",
+    P.REPO_ROOT / "docs" / "claims-audit.md",
+)
 
 SHORT = {
     "bicubic": "Bicubic (OpenCV)",
@@ -93,11 +97,12 @@ def hardware(results: dict) -> str:
     if env.get("gpu"):
         cudnn = env.get("cudnn")
         cudnn_s = f"{cudnn // 10000}.{cudnn // 100 % 100}.{cudnn % 100}" if cudnn else "?"
+        power = env.get("gpu_power_limit")
+        power_s = f", power limit {power}" if power and "N/A" not in power else ""
         return (
-            f"{env['gpu']} ({env.get('gpu_memory_gb')} GB, power limit "
-            f"{env.get('gpu_power_limit')}), driver {env.get('driver')}, CUDA "
-            f"{env.get('cuda_runtime')}, cuDNN {cudnn_s}, PyTorch {env['torch']}, "
-            f"Python {env['python']}"
+            f"{env['gpu']} ({env.get('gpu_memory_gb')} GB{power_s}), driver "
+            f"{env.get('driver')}, CUDA {env.get('cuda_runtime')}, cuDNN {cudnn_s}, "
+            f"PyTorch {env['torch']}, Python {env['python']}"
         )
     return f"CPU {env.get('cpu')}, PyTorch {env['torch']}, Python {env['python']}"
 
@@ -153,7 +158,11 @@ def quality_table(results: dict, set_name: str) -> str:
     fp16 = [(a, b) for a, b in fp16 if a and b]
     if fp16:
         worst = max(abs(a["psnr_mean"] - b["psnr_mean"]) for a, b in fp16)
-        lines += ["", f"Thermal model in fp16: PSNR within {worst:.3f} dB of fp32 at every scale."]
+        bound = "less than 0.001" if worst < 0.001 else f"within {worst:.3f}"
+        lines += [
+            "",
+            f"Thermal model with fp16 autocast: PSNR {bound} dB from fp32 at every scale.",
+        ]
     return "\n".join(lines)
 
 
@@ -189,7 +198,36 @@ def speed_table(results: dict) -> str:
         "",
         f"Hardware: {hardware(results)}.",
     ]
+    cond = conditions(results)
+    if cond:
+        lines += ["", cond]
     return "\n".join(lines)
+
+
+def conditions(results: dict) -> str:
+    """Thermal / load state during timing (laptop GPUs throttle)."""
+    tel = results.get("speed_telemetry") or {}
+    trials = [v for k, v in tel.items() if k.startswith("after_trial") and v]
+    if not trials:
+        return ""
+    temps = [float(t["temp_c"]) for t in trials]
+    clocks = [int(t["sm_clock"].split()[0]) for t in trials]
+    txt = (
+        f"Conditions: GPU at {min(temps):.0f}-{max(temps):.0f} °C and SM clock "
+        f"{min(clocks)}-{max(clocks)} MHz (max {trials[0]['sm_clock_max']}) at the end of "
+        "the trials"
+    )
+    loads = [t["cpu_loadavg_1m"] for t in trials if "cpu_loadavg_1m" in t]
+    if loads:
+        txt += f", 1-min CPU load average {min(loads):.1f}-{max(loads):.1f}"
+    starts = [
+        float(v["telemetry"]["temp_c"])
+        for k, v in tel.items()
+        if k.startswith("before_trial") and v.get("telemetry")
+    ]
+    if starts:
+        txt += f"; trials started at {min(starts):.0f}-{max(starts):.0f} °C"
+    return txt + ". Treat the trial spread as the uncertainty of these timings."
 
 
 def _headline_numbers(results: dict) -> dict | None:
@@ -225,12 +263,17 @@ def headline(results: dict) -> str:
     if sp:
         i, o = sp["input_hw"], sp["output_hw"]
         gpu = results["environment"].get("gpu") or "CPU"
+        prec = "fp16 autocast" if sp["precision"] == "fp16" else sp["precision"]
         txt += (
             f". One {i[1]}x{i[0]} -> {o[1]}x{o[0]} frame takes **{sp['model']['median_ms']:.2f} ms "
-            f"median** for the forward pass in {sp['precision']} on an {gpu} "
+            f"median** for the forward pass with {prec} on an {gpu} "
             f"({sp['model']['fps']:.0f} FPS; {sp['end_to_end']['median_ms']:.2f} ms, "
             f"{sp['end_to_end']['fps']:.0f} FPS including host-device copies and conversion)"
         )
+        f32 = r2["fp32"]
+        if f32 and f32 is not sp:
+            m32 = f32["model"]
+            txt += f"; in fp32 it takes {m32['median_ms']:.2f} ms ({m32['fps']:.0f} FPS)"
     return txt + "."
 
 
@@ -350,8 +393,107 @@ def render_markdown(results: dict) -> str:
     return "\n".join(parts) + "\n"
 
 
+# Figures from the README on main before this benchmark (commit 5a23feb). They are
+# quoted, never recomputed; see docs/claims-audit.md for where each came from.
+OLD = {
+    2: {"psnr": 34.2, "ssim": 0.840, "fps": "270.6 (table) / 229.6 (report)"},
+    3: {"psnr": 31.0, "ssim": 0.757, "fps": "256.1"},
+    4: {"psnr": 29.6, "ssim": 0.713, "fps": "250.9"},
+}
+OLD_BICUBIC_X2 = {"psnr": 24.2, "ssim": 0.612}
+
+
+def claims_table(results: dict) -> str:
+    """Old README figures next to what the benchmark measures (repo17, protocol v1)."""
+    if "repo17" not in results["test_sets"]:
+        return "_repo17 not in this run._"
+    lines = [
+        "| Figure | Old README | Measured now | Why they differ |",
+        "|:---|:---|:---|:---|",
+    ]
+    for s in _scales(results):
+        t = _q(results, "repo17", s, "imdn_thermal", "fp32")
+        b = _q(results, "repo17", s, "bicubic")
+        if not (t and b):
+            continue
+        o = OLD[s]
+        lines.append(
+            f"| x{s} PSNR / SSIM | {o['psnr']} dB / {o['ssim']} | {t['psnr_mean']:.2f} dB / "
+            f"{t['ssim_mean']:.4f} (bicubic {b['psnr_mean']:.2f} dB / {b['ssim_mean']:.4f}) | "
+            "Old: 1,100 unpublished validation frames at 640x512 that also picked the "
+            "checkpoint, no border crop, unquantised output. New: 17 committed frames, "
+            "protocol v1.0. Not the same images, so not directly comparable. |"
+        )
+    b2 = _q(results, "repo17", 2, "bicubic")
+    t2 = _q(results, "repo17", 2, "imdn_thermal", "fp32")
+    if b2 and t2:
+        lines.append(
+            f"| x2 bicubic baseline | {OLD_BICUBIC_X2['psnr']} dB / {OLD_BICUBIC_X2['ssim']} | "
+            f"{b2['psnr_mean']:.2f} dB / {b2['ssim_mean']:.4f} | No code, data or citation "
+            "for the old row. |"
+        )
+        lines.append(
+            f"| x2 gain over bicubic | +10.0 dB (34.2 vs 24.2) | "
+            f"{t2['psnr_mean'] - b2['psnr_mean']:+.2f} dB | Same images and protocol for "
+            "both methods now. |"
+        )
+    for s in _scales(results):
+        f32, f16 = _s(results, s, "fp32"), _s(results, s, "fp16")
+        if not f32:
+            continue
+        i, o = f32["input_hw"], f32["output_hw"]
+        now = f"fp32 {f32['model']['fps']:.0f} FPS"
+        if f16:
+            now += f", fp16 {f16['model']['fps']:.0f} FPS"
+        lines.append(
+            f"| x{s} speed | {OLD[s]['fps']} FPS | {now} ({i[1]}x{i[0]} -> {o[1]}x{o[0]}, "
+            "forward only) | Old timing used time.time() without torch.cuda.synchronize(), "
+            "which measures kernel launches, not GPU work. |"
+        )
+    return "\n".join(lines)
+
+
+def changed(results: dict) -> str:
+    """Short 'what changed' bullets for the README."""
+    t2 = _q(results, "repo17", 2, "imdn_thermal", "fp32")
+    b2 = _q(results, "repo17", 2, "bicubic")
+    f32, f16 = _s(results, 2, "fp32"), _s(results, 2, "fp16")
+    if not (t2 and b2):
+        return "_No results._"
+    out = [
+        f"- **Quality.** On the 17 committed frames the x2 model is "
+        f"{t2['psnr_mean'] - b2['psnr_mean']:+.2f} dB PSNR above bicubic "
+        f"({t2['psnr_mean']:.2f} vs {b2['psnr_mean']:.2f} dB). The old table implied about "
+        "+10 dB, against a bicubic figure (24.2 dB) that has no traceable source. The old "
+        "34.2 dB came from a validation split that is not published and also selected the "
+        "checkpoint; it is no longer quoted.",
+    ]
+    if f32:
+        txt = (
+            f"- **Speed.** Timed with GPU synchronisation, x2 (320x256 -> 640x512) runs at "
+            f"{f32['model']['fps']:.0f} FPS in fp32"
+        )
+        if f16:
+            txt += f" and {f16['model']['fps']:.0f} FPS with fp16 autocast"
+        txt += (
+            " on an RTX 3070 Laptop GPU, not 229-271 FPS: the old figures timed kernel "
+            "launches, not GPU work."
+        )
+        out.append(txt)
+    out.append(
+        "- **Removed** as unsupported: ~~First thermal super-resolution system~~, "
+        "~~New SOTA for thermal SR~~, ~~15x faster than competitors~~, ~~First real-time 4x "
+        "thermal SR~~, ~~Breakthrough method~~, ~~novel IMDN architecture~~, the 40x/24x "
+        "parameter-reduction claims and the ESRGAN comparison row (never run here). Full list: "
+        "[docs/claims-audit.md](docs/claims-audit.md)."
+    )
+    return "\n".join(out)
+
+
 BLOCKS = {
     "HEADLINE": headline,
+    "CLAIMS": claims_table,
+    "CHANGED": changed,
     "QUALITY": lambda r: "\n\n".join(quality_table(r, s) for s in r["test_sets"]),
     "SPEED": speed_table,
     "ABLATION": ablation_table,
