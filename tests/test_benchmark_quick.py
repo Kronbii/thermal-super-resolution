@@ -83,3 +83,11 @@ def test_readme_has_no_unsupported_superlatives():
         # allowed only inside the 'what changed' list that quotes the removed claims
         quoted = re.findall(r"~~[^~]*~~", text)
         assert all(any(h in q for q in quoted) for h in hits), f"{pat!r} outside a quote"
+
+
+def test_figure_renders_from_results(quick_results, tmp_path):
+    from benchmark import figure
+
+    res, _ = quick_results
+    out = figure.render(res, tmp_path / "fig.png")
+    assert out.exists() and out.stat().st_size > 10_000
