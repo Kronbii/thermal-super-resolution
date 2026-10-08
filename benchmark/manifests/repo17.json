@@ -1,0 +1,110 @@
+{
+ "name": "repo17",
+ "source": "FLIR ADAS v2 thermal images (Teledyne FLIR). The file names follow the dataset's naming (video-<id>-frame-<n>-<id>). Their size (320x256 = 640x512 / 2) and the realtime scripts that read them indicate they are the x2 bicubic LR versions of frames from this repo's own validation split (scripts/prepare-train-data.ipynb), copied in for the threaded demo.",
+ "licence": "Teledyne FLIR Non-Commercial Image Dataset License Agreement (FLIR keeps ownership; research / non-commercial use). Not covered by this repository's MIT licence.",
+ "count": 17,
+ "files": [
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+   "sha256": "9231dfac669632a46398bc6b1e4a39b5918c3668f138cc59dba4597a7b63d7de",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+   "sha256": "9f503457fb82ef1155c4d8026c2e4dc3444133d9d632d8207de954ca6eb6f073",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+   "sha256": "ac64cd7e4b7c06c6899a591c571fdcd037e2f82825ccc985130c2508f73170b6",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+   "sha256": "52c626fd2cae563d83ed316fb99f17027015de791a320548ecef7b146aab5f72",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+   "sha256": "48c78107c140dfd7051145ce4cc3c300da70e233ce06813033c5cdb908bd4ad6",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+   "sha256": "d8cfe7de684897209974c2e93ec1b28aed45a366a4797c4fafd49f09233b1dd9",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+   "sha256": "d917973ed5f71e067c0c7912cc4bd2ebbb610ffe2a900f7904647c9c8467019c",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+   "sha256": "b7827673cf8436b0c8f64f919a9481093a61aa59db64c051aec0d3570a8de8eb",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+   "sha256": "0cfe1dce757a273b883c08a567ea89abf959cfce81d4c22cf8da35712cac11e4",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+   "sha256": "be580d2ffd2ab43b2f20579f6d2ef1585590960dbbe0cf89caa5cd021f31562f",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+   "sha256": "c998ab13519952e63dcabb880936f8d9a5d7fd7faf982245bbafc434e8997a88",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+   "sha256": "0c325ed225ac1e443631970f185ed152ac754020d3e682e7ab7e37237b69d631",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+   "sha256": "ffbae65124c5c3ad952b213050caf731c0f686e6aef03f8c6762b37680b59cbe",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+   "sha256": "5cda5712c793444fa68f42b51b8ebcf2dfe2a5dbd335af6e54d479caf61ede92",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+   "sha256": "63745104fa08099db64523f7b4e35ef21e724001507fe736b5fc69b4a3701f4f",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+   "sha256": "7d8f57ff1e9b598a2f8a5f95e586bc2d26925dca1b1a69129f1b7e9ae41d0cd1",
+   "height": 256,
+   "width": 320
+  },
+  {
+   "path": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+   "sha256": "4e775ace62a2069784862f4134c98e5eb60825346c4513144de1802655a5f497",
+   "height": 256,
+   "width": 320
+  }
+ ]
+}

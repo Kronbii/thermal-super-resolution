@@ -1,0 +1,323 @@
+{
+ "name": "tno-lwir",
+ "source": "Toet, A. (2014). TNO Image Fusion Dataset. figshare. https://doi.org/10.6084/m9.figshare.1008029 (Athena, DHV, TRICLOBS camera systems; 8-bit, from 359x247 to 945x709 pixels).",
+ "licence": "CC BY 4.0 (figshare record). Credit: TNO, Soesterberg, The Netherlands. Downloaded on demand to .bench-data/, never committed.",
+ "archive": {
+  "url": "https://ndownloader.figshare.com/files/1475454",
+  "md5": "1ab9ce3b84dd3e5894630c13abd20953",
+  "sha256": "7aa2ae534a36d71698a0c88f2cce17fc4b595521959fa4bf053469d817f32190",
+  "size": 122712465,
+  "archive_name": "TNO_Image_Fusion_Dataset.zip",
+  "extract_dir": "tno"
+ },
+ "selection": "Selection: files whose name marks the thermal band (IR_*, ir, *_IR, IR<n>, *LWIR*) in single-scene folders; the FEL and DHV image sequences are excluded (near-duplicate frames). tank/LWIR.tif is excluded because its three channels differ (not a plain single-band image). APC_2 is excluded because its file names do not identify the band. The exact list and per-file SHA-256 are in benchmark/manifests/tno_lwir.json.",
+ "count": 51,
+ "files": [
+  {
+   "path": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+   "sha256": "d0afebd61208256f98ffbd755d3a56b31d9a41dc2565c60dd724773753098c68",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+   "sha256": "34d95a44773c3bb2f94c73aa36429480d7350a486c19b2dd366e38459d77f1ca",
+   "height": 439,
+   "width": 609
+  },
+  {
+   "path": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+   "sha256": "98d728ef572201d2a5fe6b86b1289d27f30868ef4c18d46cf155992fd284cf3e",
+   "height": 439,
+   "width": 604
+  },
+  {
+   "path": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+   "sha256": "cd77abe494e851bf4c4ff4b4cc990bc7b09a5d2da902260a968260a8785340ab",
+   "height": 445,
+   "width": 616
+  },
+  {
+   "path": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+   "sha256": "c06d5a9a36df6fe2b4ffa1f0657ff226dea68c0a4a80211456ec5220625ac576",
+   "height": 446,
+   "width": 599
+  },
+  {
+   "path": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+   "sha256": "06007da0c08ce50df5a4e8e0d590e487608129d4f57c88ca05b2276134a2544f",
+   "height": 456,
+   "width": 607
+  },
+  {
+   "path": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+   "sha256": "21ab74bbcc30a79581a7a1db8df561cc094481863bf7be1db608509ca36d54af",
+   "height": 458,
+   "width": 611
+  },
+  {
+   "path": "Athena_images/APC_4/IR_fennek01_005.bmp",
+   "sha256": "4139ae974fd4fd3603db27ea8a671c70b2ac5b6f4b6c978e1318da826645ae3d",
+   "height": 551,
+   "width": 749
+  },
+  {
+   "path": "Athena_images/airplane_in_trees/ir.bmp",
+   "sha256": "1e79820cc251a679f4aca31cd02d13e95032e57a88e7d841dca3b30b4263e0c9",
+   "height": 328,
+   "width": 595
+  },
+  {
+   "path": "Athena_images/bunker/IR_bunker_g.bmp",
+   "sha256": "8dd29c47b4bc2db0fb05c61162861950eaea6e95d5f01a0efa098f3ce2c502be",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/heather/IR_hei_vis_g.bmp",
+   "sha256": "3b43d12d1f2861cc3e55746e29feacdb04f1b5a6a4384e2b7eb038897771cf42",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/helicopter/IR_helib_011.bmp",
+   "sha256": "12838f3423701461dd8912b3856f3f9e2d2ddafbe28e23c127d681f9e29b06c6",
+   "height": 247,
+   "width": 359
+  },
+  {
+   "path": "Athena_images/lake/IR_lake_g.bmp",
+   "sha256": "173a0352451b411127942ef15dd04801a7d6e3967eccee8d8454860b160c6a08",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+   "sha256": "2df87480cd1c06f2b1d42e707355537529f9554bd4807e9a43463dc1cb79ef93",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+   "sha256": "51985b7f6b62d8812b51d2a2056999a6d9fb533b2dac47d495918f4d0a442003",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+   "sha256": "d900a812c37afc3dd6b0473989077715db740fe1018e43daf820772b15d51c39",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+   "sha256": "dc38b9903cf1b131bdc8d1e466c31a4205fa95993ee460896fef0c008ba3eff8",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+   "sha256": "6d0f858f27be96d3c8ee363c23eebc3ed61abbfbd2861eb33cd9d47e37e0cb32",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+   "sha256": "de82c6c090c1ab6299054ac9009c68b925f3a303fbb4d3c316e27a7603dd9945",
+   "height": 576,
+   "width": 768
+  },
+  {
+   "path": "DHV_images/bench/IR_37rad.bmp",
+   "sha256": "6c088f8fcfd7620c110af9c86b6448ab6b5e072fd9229882d202b63790830d9d",
+   "height": 280,
+   "width": 280
+  },
+  {
+   "path": "DHV_images/sandpath/IR_18rad.bmp",
+   "sha256": "1c771ed3599e86d06284740a042da650021c4ffd1fd97bd17dce77771502f0d0",
+   "height": 475,
+   "width": 575
+  },
+  {
+   "path": "DHV_images/wall/IR_163rad.bmp",
+   "sha256": "6fda6d5bd055bd16aba274f6735740e600ed72089f0c155b5e9dbcd8a373734e",
+   "height": 280,
+   "width": 280
+  },
+  {
+   "path": "Triclobs_images/Bosnia/LWIR_B.bmp",
+   "sha256": "35a5ba9eefc38864f61a7b118d7f61e565e739729c8fd7aa0be9c6521ddc80ed",
+   "height": 480,
+   "width": 640
+  },
+  {
+   "path": "Triclobs_images/Farm/Farm_IR.bmp",
+   "sha256": "c446cb66725fad46ebba45674d9762aa355fab794670cdffe9635e7760595b32",
+   "height": 371,
+   "width": 472
+  },
+  {
+   "path": "Triclobs_images/Kaptein_01/IR01.bmp",
+   "sha256": "1ad66554e41c8ea68b5a66ed4ad6e6701454474353a22240a5c456ef9b1d2abb",
+   "height": 458,
+   "width": 622
+  },
+  {
+   "path": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+   "sha256": "c183d60885caad203b7d3de6f1548d6648a3c04f96046c01645dd3a96dac4598",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+   "sha256": "50b4ec7a583fdc47e6be9b19ca0ed63a6adeb515ebc4996115dc83a22256328f",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Kaptein_19/IR19.bmp",
+   "sha256": "9e6c9f1f7e874414284bccf4e163bee926ecc668825bd8eb2e7b47eafc0b755c",
+   "height": 457,
+   "width": 619
+  },
+  {
+   "path": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+   "sha256": "da5b2468d26378e3d02fb88d9be9b916b5cbb78fd5a40c3c8acd6dd5ff282d9c",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+   "sha256": "2910a55d9fdc64dd2a6160d462538e4459934fcf6bef6ecf5106abb74e951bf7",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+   "sha256": "7a3fbab96b89f31bbc2bad67f7669cd5f2a3084397cc4d5d03e551f7eab0d9b7",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+   "sha256": "d1a7f9ca24f44139f4c6f29eb9f310d7b90ef775f131cd30463def87be959dcb",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+   "sha256": "9adf716e41916c6355c86973605ffc0d7cae24c505bf74672ef9795d97ea6266",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+   "sha256": "cfe74579143959d6be56828d51bba8f173659afaba712d709d3966de2aa6da98",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+   "sha256": "585c210b9f4e677199cd8cd40e6d5422bf82aefd1ade3af26a76f56538c6f79d",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+   "sha256": "dd77ef0c446e36e2850e9811483cd36494f3b959bddee1a19a9fda2ffb11f0f4",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+   "sha256": "fbd0111309039bca6040a25c904fba7b95c19c97cbeafa4a5b279a12391b70a7",
+   "height": 460,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+   "sha256": "73dda5abb123e716cf3c3cfa16a48d393193a80c45df3c30df3231043a9405e2",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+   "sha256": "9e8686831518d11303acb5a11dd5046376c2eec972f949378e8876ab49086e71",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+   "sha256": "a5ea29e120ea208ad7b58216b2ce07bb115501fe089545271f01eb0508cc6b9b",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+   "sha256": "4bd3461a94d6655df15c8a173652540734d89d1e05fb6800e9f5c105406764b1",
+   "height": 458,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+   "sha256": "0c0b1e9a79eafc65f398a425711c184bcfe43f1cbbac33ca019764bcb389171b",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+   "sha256": "f350fa56dea2c80f92502be45c0753a0c76555d629400785c687f6a0b64932d0",
+   "height": 464,
+   "width": 619
+  },
+  {
+   "path": "Triclobs_images/Reek/Reek_IR.bmp",
+   "sha256": "3385df15d4c324e6ed8c6d06b5744e28b3fd248ee646f927570b8dc3284095ec",
+   "height": 450,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+   "sha256": "daf4bef71cdec84e6e01742034015bcc5de1394df287a03957d011acc7630100",
+   "height": 709,
+   "width": 945
+  },
+  {
+   "path": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+   "sha256": "cf6ca4f18ddb10c191e2899e6fe5dd4f0eba2e3b287463dff890bf45b87605ef",
+   "height": 480,
+   "width": 640
+  },
+  {
+   "path": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+   "sha256": "4bd3461a94d6655df15c8a173652540734d89d1e05fb6800e9f5c105406764b1",
+   "height": 458,
+   "width": 620
+  },
+  {
+   "path": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+   "sha256": "813eaeb29e381bd9b8f1f60644e1714fca763e7513bd4a01b90108eb2e0e20ed",
+   "height": 480,
+   "width": 640
+  },
+  {
+   "path": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+   "sha256": "b0b2c757c79d979eba105f7b1b1f5c605ffb1eeba2f3e3c9ff8d1143ceca2910",
+   "height": 480,
+   "width": 640
+  },
+  {
+   "path": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+   "sha256": "17f10675e04fd569af542c5a5db7179fb883ec5d3f1281444b62aeba629f71e5",
+   "height": 678,
+   "width": 917
+  },
+  {
+   "path": "Triclobs_images/square_with_houses/LWIR.bmp",
+   "sha256": "2dbbe231beacc38d696909b398cb60c173c80cbef301bf7baf2ed3258e02a5cc",
+   "height": 480,
+   "width": 640
+  }
+ ]
+}
