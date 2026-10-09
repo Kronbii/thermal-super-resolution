@@ -149,8 +149,10 @@ def measure_speed(
     samples: dict = {}
     for trial in range(trials):
         if device.type == "cuda" and not args.quick:
-            telemetry[f"before_trial_{trial + 1}"] = timing.wait_for_cooldown(
-                P.SPEED["cooldown_temp_c"], P.SPEED["cooldown_timeout_s"]
+            telemetry[f"before_trial_{trial + 1}"] = timing.wait_for_quiet(
+                P.SPEED["cooldown_temp_c"],
+                P.SPEED["max_cpu_loadavg"],
+                P.SPEED["cooldown_timeout_s"],
             )
         for scale, (_method, net) in nets.items():
             in_hw = (out_hw[0] // scale, out_hw[1] // scale)

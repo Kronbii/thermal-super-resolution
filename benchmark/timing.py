@@ -107,14 +107,25 @@ def gpu_telemetry() -> dict | None:
     return tel
 
 
-def wait_for_cooldown(max_temp_c: int, timeout_s: float) -> dict:
-    """Wait (bounded) until the GPU is at or below max_temp_c, so runs start alike."""
+def wait_for_quiet(max_temp_c: int, max_load: float, timeout_s: float) -> dict:
+    """Wait (bounded) until the GPU is cool and the machine is not busy with other
+    work, so every trial starts from a comparable state. Records what it saw."""
     t0 = time.time()
     tel = gpu_telemetry()
-    while tel and float(tel["temp_c"]) > max_temp_c and time.time() - t0 < timeout_s:
+
+    def busy(t):
+        return t and (float(t["temp_c"]) > max_temp_c or t["cpu_loadavg_1m"] > max_load)
+
+    while busy(tel) and time.time() - t0 < timeout_s:
         time.sleep(5)
         tel = gpu_telemetry()
-    return {"waited_s": round(time.time() - t0, 1), "target_c": max_temp_c, "telemetry": tel}
+    return {
+        "waited_s": round(time.time() - t0, 1),
+        "target_temp_c": max_temp_c,
+        "target_loadavg": max_load,
+        "reached": not busy(tel),
+        "telemetry": tel,
+    }
 
 
 def peak_memory_mb(device: torch.device) -> float | None:

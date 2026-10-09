@@ -220,13 +220,20 @@ def conditions(results: dict) -> str:
     loads = [t["cpu_loadavg_1m"] for t in trials if "cpu_loadavg_1m" in t]
     if loads:
         txt += f", 1-min CPU load average {min(loads):.1f}-{max(loads):.1f}"
-    starts = [
-        float(v["telemetry"]["temp_c"])
-        for k, v in tel.items()
-        if k.startswith("before_trial") and v.get("telemetry")
-    ]
-    if starts:
-        txt += f"; trials started at {min(starts):.0f}-{max(starts):.0f} °C"
+    pre = [v for k, v in tel.items() if k.startswith("before_trial") and v.get("telemetry")]
+    if pre:
+        st = [float(v["telemetry"]["temp_c"]) for v in pre]
+        sl = [v["telemetry"].get("cpu_loadavg_1m", 0.0) for v in pre]
+        txt += (
+            f". Trials started at {min(st):.0f}-{max(st):.0f} °C with CPU load average "
+            f"{min(sl):.1f}-{max(sl):.1f}"
+        )
+        missed = sum(1 for v in pre if not v.get("reached", True))
+        if missed:
+            txt += (
+                f" ({missed} of {len(pre)} trials started before the machine was quiet: "
+                "other processes were running)"
+            )
     return txt + ". Treat the trial spread as the uncertainty of these timings."
 
 
