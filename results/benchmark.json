@@ -1,0 +1,6163 @@
+{
+ "generated_utc": "2026-10-10T12:36:31Z",
+ "command": "python -m benchmark.run --scale 2 3 4 --sets repo17 tno-lwir",
+ "quick": false,
+ "random_weights": false,
+ "protocol": {
+  "version": "1.0",
+  "seed": 0,
+  "scales": [
+   2,
+   3,
+   4
+  ],
+  "degradation": {
+   "read": "cv2.imread(path, cv2.IMREAD_GRAYSCALE) -> uint8, 1 channel",
+   "modcrop": "HR[:H - H % s, :W - W % s] (top-left anchored)",
+   "downscale": "cv2.resize(HR, (W // s, H // s), interpolation=cv2.INTER_CUBIC)",
+   "matches_training": "scripts/prepare-train-data.ipynb, generate_lr_image()"
+  },
+  "ablation_degradations": {
+   "pil_bicubic_antialias": "PIL.Image.resize((W // s, H // s), Image.BICUBIC) on the same modcropped HR"
+  },
+  "io": {
+   "input": "float32 tensor = uint8 / 255, shape (1, 1, h, w), range [0, 1]",
+   "rgb_baseline_input": "gray replicated to 3 channels (upstream IMDN is RGB)",
+   "rgb_baseline_output": "mean of the 3 output channels",
+   "output": "clamp to [0, 1], x255, round half to even (torch.round), uint8"
+  },
+  "metrics": {
+   "channel": "single (grayscale)",
+   "data_range": 255.0,
+   "border_crop": "scale pixels on each side",
+   "psnr": "10*log10(255^2 / MSE), MSE over the border-cropped image, float64",
+   "ssim": {
+    "reference": "Wang et al. 2004, as skimage.metrics.structural_similarity(gaussian_weights=True, sigma=1.5, use_sample_covariance=False, data_range=255)",
+    "window": "11x11 Gaussian, sigma=1.5 (radius 5), normalised to sum 1",
+    "K1": 0.01,
+    "K2": 0.03,
+    "covariance": "population (no N/(N-1) correction)",
+    "aggregation": "mean of the SSIM map over the 'valid' region (window fully inside the image)"
+   },
+   "aggregation": "mean over images of per-image values"
+  },
+  "speed": {
+   "batch": 1,
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "interleaving": "for trial: for scale: for precision (thermal drift hits all configurations alike); the 5 x 300 samples of a configuration are pooled",
+   "cooldown": "before every trial, wait until the GPU is at or below cooldown_temp_c and the 1-minute CPU load average is at or below max_cpu_loadavg (at most cooldown_timeout_s), so trials start from a comparable state on a shared laptop; what was reached is recorded",
+   "cooldown_temp_c": 60,
+   "max_cpu_loadavg": 4.0,
+   "cooldown_timeout_s": 300,
+   "memory_format": "default contiguous NCHW; no TensorRT, CUDA graphs or torch.compile",
+   "precisions": [
+    "fp32",
+    "fp16"
+   ],
+   "fp32": "float32 weights and activations, TF32 disabled",
+   "fp16": "automatic mixed precision: torch.autocast(float16), weights kept in float32 (as in threaded_display_60fps.py). Pure model.half() is not used: the channel-attention statistics overflow float16 on 160x128 and larger inputs and the output becomes NaN",
+   "cudnn_benchmark": true,
+   "model_latency": "input already on device; torch.cuda.synchronize() before and after each forward; wall clock via time.perf_counter",
+   "end_to_end_latency": "uint8 LR frame in host memory -> float conversion -> host-to-device copy -> forward -> clamp/round/uint8 -> device-to-host copy -> uint8 numpy frame (the copy back synchronises)",
+   "fps": "1000 / median latency in ms",
+   "output_hw": [
+    512,
+    640
+   ],
+   "input_hw_per_scale": {
+    "2": [
+     256,
+     320
+    ],
+    "3": [
+     170,
+     213
+    ],
+    "4": [
+     128,
+     160
+    ]
+   }
+  }
+ },
+ "environment": {
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+  "cpu": "AMD Ryzen 7 5800H with Radeon Graphics",
+  "torch": "2.9.1+cu128",
+  "numpy": "2.2.6",
+  "opencv": "4.12.0",
+  "device": "cuda",
+  "torch_num_threads": 8,
+  "git": {
+   "commit": "a4ea485010eb457a7ae542d5774dbc9dae2a0728",
+   "dirty": false
+  },
+  "gpu": "NVIDIA GeForce RTX 3070 Laptop GPU",
+  "gpu_memory_gb": 8.19,
+  "gpu_compute_capability": "8.6",
+  "cuda_runtime": "12.8",
+  "cudnn": 91002,
+  "driver": "580.173.02",
+  "gpu_power_limit": "[N/A]"
+ },
+ "test_sets": {
+  "repo17": {
+   "description": "The 17 thermal frames committed in test-data/ (320x256, 8-bit grayscale).",
+   "source": "FLIR ADAS v2 thermal images (Teledyne FLIR). The file names follow the dataset's naming (video-<id>-frame-<n>-<id>). Their size (320x256 = 640x512 / 2) and the realtime scripts that read them indicate they are the x2 bicubic LR versions of frames from this repo's own validation split (scripts/prepare-train-data.ipynb), copied in for the threaded demo.",
+   "licence": "Teledyne FLIR Non-Commercial Image Dataset License Agreement (FLIR keeps ownership; research / non-commercial use). Not covered by this repository's MIT licence.",
+   "hr_note": "The 'HR' reference here is itself a 2x bicubic downscale of the native 640x512 frame, so this set measures the operator on 320x256 content, not on native-resolution frames.",
+   "selection": null,
+   "n_images": 17,
+   "images": [
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "sha256": "9231dfac669632a46398bc6b1e4a39b5918c3668f138cc59dba4597a7b63d7de"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "sha256": "9f503457fb82ef1155c4d8026c2e4dc3444133d9d632d8207de954ca6eb6f073"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "sha256": "ac64cd7e4b7c06c6899a591c571fdcd037e2f82825ccc985130c2508f73170b6"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "sha256": "52c626fd2cae563d83ed316fb99f17027015de791a320548ecef7b146aab5f72"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "sha256": "48c78107c140dfd7051145ce4cc3c300da70e233ce06813033c5cdb908bd4ad6"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "sha256": "d8cfe7de684897209974c2e93ec1b28aed45a366a4797c4fafd49f09233b1dd9"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "sha256": "d917973ed5f71e067c0c7912cc4bd2ebbb610ffe2a900f7904647c9c8467019c"
+    },
+    {
+     "name": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "sha256": "b7827673cf8436b0c8f64f919a9481093a61aa59db64c051aec0d3570a8de8eb"
+    },
+    {
+     "name": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "sha256": "0cfe1dce757a273b883c08a567ea89abf959cfce81d4c22cf8da35712cac11e4"
+    },
+    {
+     "name": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "sha256": "be580d2ffd2ab43b2f20579f6d2ef1585590960dbbe0cf89caa5cd021f31562f"
+    },
+    {
+     "name": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "sha256": "c998ab13519952e63dcabb880936f8d9a5d7fd7faf982245bbafc434e8997a88"
+    },
+    {
+     "name": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "sha256": "0c325ed225ac1e443631970f185ed152ac754020d3e682e7ab7e37237b69d631"
+    },
+    {
+     "name": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "sha256": "ffbae65124c5c3ad952b213050caf731c0f686e6aef03f8c6762b37680b59cbe"
+    },
+    {
+     "name": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "sha256": "5cda5712c793444fa68f42b51b8ebcf2dfe2a5dbd335af6e54d479caf61ede92"
+    },
+    {
+     "name": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "sha256": "63745104fa08099db64523f7b4e35ef21e724001507fe736b5fc69b4a3701f4f"
+    },
+    {
+     "name": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "sha256": "7d8f57ff1e9b598a2f8a5f95e586bc2d26925dca1b1a69129f1b7e9ae41d0cd1"
+    },
+    {
+     "name": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "sha256": "4e775ace62a2069784862f4134c98e5eb60825346c4513144de1802655a5f497"
+    }
+   ]
+  },
+  "tno-lwir": {
+   "description": "Optional cross-sensor set: 51 single-band thermal images from the TNO Image Fusion Dataset (one per scene; image sequences excluded).",
+   "source": "Toet, A. (2014). TNO Image Fusion Dataset. figshare. https://doi.org/10.6084/m9.figshare.1008029 (Athena, DHV, TRICLOBS camera systems; 8-bit, from 359x247 to 945x709 pixels).",
+   "licence": "CC BY 4.0 (figshare record). Credit: TNO, Soesterberg, The Netherlands. Downloaded on demand to .bench-data/, never committed.",
+   "hr_note": "Native-resolution thermal images from cameras other than the one the model was trained on: a generalisation check, not an in-distribution test.",
+   "selection": "Selection: files whose name marks the thermal band (IR_*, ir, *_IR, IR<n>, *LWIR*) in single-scene folders; the FEL and DHV image sequences are excluded (near-duplicate frames). tank/LWIR.tif is excluded because its three channels differ (not a plain single-band image). APC_2 is excluded because its file names do not identify the band. The exact list and per-file SHA-256 are in benchmark/manifests/tno_lwir.json.",
+   "n_images": 51,
+   "images": [
+    {
+     "name": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "sha256": "d0afebd61208256f98ffbd755d3a56b31d9a41dc2565c60dd724773753098c68"
+    },
+    {
+     "name": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "sha256": "34d95a44773c3bb2f94c73aa36429480d7350a486c19b2dd366e38459d77f1ca"
+    },
+    {
+     "name": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "sha256": "98d728ef572201d2a5fe6b86b1289d27f30868ef4c18d46cf155992fd284cf3e"
+    },
+    {
+     "name": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "sha256": "cd77abe494e851bf4c4ff4b4cc990bc7b09a5d2da902260a968260a8785340ab"
+    },
+    {
+     "name": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "sha256": "c06d5a9a36df6fe2b4ffa1f0657ff226dea68c0a4a80211456ec5220625ac576"
+    },
+    {
+     "name": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "sha256": "06007da0c08ce50df5a4e8e0d590e487608129d4f57c88ca05b2276134a2544f"
+    },
+    {
+     "name": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "sha256": "21ab74bbcc30a79581a7a1db8df561cc094481863bf7be1db608509ca36d54af"
+    },
+    {
+     "name": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "sha256": "4139ae974fd4fd3603db27ea8a671c70b2ac5b6f4b6c978e1318da826645ae3d"
+    },
+    {
+     "name": "Athena_images/airplane_in_trees/ir.bmp",
+     "sha256": "1e79820cc251a679f4aca31cd02d13e95032e57a88e7d841dca3b30b4263e0c9"
+    },
+    {
+     "name": "Athena_images/bunker/IR_bunker_g.bmp",
+     "sha256": "8dd29c47b4bc2db0fb05c61162861950eaea6e95d5f01a0efa098f3ce2c502be"
+    },
+    {
+     "name": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "sha256": "3b43d12d1f2861cc3e55746e29feacdb04f1b5a6a4384e2b7eb038897771cf42"
+    },
+    {
+     "name": "Athena_images/helicopter/IR_helib_011.bmp",
+     "sha256": "12838f3423701461dd8912b3856f3f9e2d2ddafbe28e23c127d681f9e29b06c6"
+    },
+    {
+     "name": "Athena_images/lake/IR_lake_g.bmp",
+     "sha256": "173a0352451b411127942ef15dd04801a7d6e3967eccee8d8454860b160c6a08"
+    },
+    {
+     "name": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "sha256": "2df87480cd1c06f2b1d42e707355537529f9554bd4807e9a43463dc1cb79ef93"
+    },
+    {
+     "name": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "sha256": "51985b7f6b62d8812b51d2a2056999a6d9fb533b2dac47d495918f4d0a442003"
+    },
+    {
+     "name": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "sha256": "d900a812c37afc3dd6b0473989077715db740fe1018e43daf820772b15d51c39"
+    },
+    {
+     "name": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "sha256": "dc38b9903cf1b131bdc8d1e466c31a4205fa95993ee460896fef0c008ba3eff8"
+    },
+    {
+     "name": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "sha256": "6d0f858f27be96d3c8ee363c23eebc3ed61abbfbd2861eb33cd9d47e37e0cb32"
+    },
+    {
+     "name": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "sha256": "de82c6c090c1ab6299054ac9009c68b925f3a303fbb4d3c316e27a7603dd9945"
+    },
+    {
+     "name": "DHV_images/bench/IR_37rad.bmp",
+     "sha256": "6c088f8fcfd7620c110af9c86b6448ab6b5e072fd9229882d202b63790830d9d"
+    },
+    {
+     "name": "DHV_images/sandpath/IR_18rad.bmp",
+     "sha256": "1c771ed3599e86d06284740a042da650021c4ffd1fd97bd17dce77771502f0d0"
+    },
+    {
+     "name": "DHV_images/wall/IR_163rad.bmp",
+     "sha256": "6fda6d5bd055bd16aba274f6735740e600ed72089f0c155b5e9dbcd8a373734e"
+    },
+    {
+     "name": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "sha256": "35a5ba9eefc38864f61a7b118d7f61e565e739729c8fd7aa0be9c6521ddc80ed"
+    },
+    {
+     "name": "Triclobs_images/Farm/Farm_IR.bmp",
+     "sha256": "c446cb66725fad46ebba45674d9762aa355fab794670cdffe9635e7760595b32"
+    },
+    {
+     "name": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "sha256": "1ad66554e41c8ea68b5a66ed4ad6e6701454474353a22240a5c456ef9b1d2abb"
+    },
+    {
+     "name": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "sha256": "c183d60885caad203b7d3de6f1548d6648a3c04f96046c01645dd3a96dac4598"
+    },
+    {
+     "name": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "sha256": "50b4ec7a583fdc47e6be9b19ca0ed63a6adeb515ebc4996115dc83a22256328f"
+    },
+    {
+     "name": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "sha256": "9e6c9f1f7e874414284bccf4e163bee926ecc668825bd8eb2e7b47eafc0b755c"
+    },
+    {
+     "name": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "sha256": "da5b2468d26378e3d02fb88d9be9b916b5cbb78fd5a40c3c8acd6dd5ff282d9c"
+    },
+    {
+     "name": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "sha256": "2910a55d9fdc64dd2a6160d462538e4459934fcf6bef6ecf5106abb74e951bf7"
+    },
+    {
+     "name": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "sha256": "7a3fbab96b89f31bbc2bad67f7669cd5f2a3084397cc4d5d03e551f7eab0d9b7"
+    },
+    {
+     "name": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "sha256": "d1a7f9ca24f44139f4c6f29eb9f310d7b90ef775f131cd30463def87be959dcb"
+    },
+    {
+     "name": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "sha256": "9adf716e41916c6355c86973605ffc0d7cae24c505bf74672ef9795d97ea6266"
+    },
+    {
+     "name": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "sha256": "cfe74579143959d6be56828d51bba8f173659afaba712d709d3966de2aa6da98"
+    },
+    {
+     "name": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "sha256": "585c210b9f4e677199cd8cd40e6d5422bf82aefd1ade3af26a76f56538c6f79d"
+    },
+    {
+     "name": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "sha256": "dd77ef0c446e36e2850e9811483cd36494f3b959bddee1a19a9fda2ffb11f0f4"
+    },
+    {
+     "name": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "sha256": "fbd0111309039bca6040a25c904fba7b95c19c97cbeafa4a5b279a12391b70a7"
+    },
+    {
+     "name": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "sha256": "73dda5abb123e716cf3c3cfa16a48d393193a80c45df3c30df3231043a9405e2"
+    },
+    {
+     "name": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "sha256": "9e8686831518d11303acb5a11dd5046376c2eec972f949378e8876ab49086e71"
+    },
+    {
+     "name": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "sha256": "a5ea29e120ea208ad7b58216b2ce07bb115501fe089545271f01eb0508cc6b9b"
+    },
+    {
+     "name": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "sha256": "4bd3461a94d6655df15c8a173652540734d89d1e05fb6800e9f5c105406764b1"
+    },
+    {
+     "name": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "sha256": "0c0b1e9a79eafc65f398a425711c184bcfe43f1cbbac33ca019764bcb389171b"
+    },
+    {
+     "name": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "sha256": "f350fa56dea2c80f92502be45c0753a0c76555d629400785c687f6a0b64932d0"
+    },
+    {
+     "name": "Triclobs_images/Reek/Reek_IR.bmp",
+     "sha256": "3385df15d4c324e6ed8c6d06b5744e28b3fd248ee646f927570b8dc3284095ec"
+    },
+    {
+     "name": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "sha256": "daf4bef71cdec84e6e01742034015bcc5de1394df287a03957d011acc7630100"
+    },
+    {
+     "name": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "sha256": "cf6ca4f18ddb10c191e2899e6fe5dd4f0eba2e3b287463dff890bf45b87605ef"
+    },
+    {
+     "name": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "sha256": "4bd3461a94d6655df15c8a173652540734d89d1e05fb6800e9f5c105406764b1"
+    },
+    {
+     "name": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "sha256": "813eaeb29e381bd9b8f1f60644e1714fca763e7513bd4a01b90108eb2e0e20ed"
+    },
+    {
+     "name": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "sha256": "b0b2c757c79d979eba105f7b1b1f5c605ffb1eeba2f3e3c9ff8d1143ceca2910"
+    },
+    {
+     "name": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "sha256": "17f10675e04fd569af542c5a5db7179fb883ec5d3f1281444b62aeba629f71e5"
+    },
+    {
+     "name": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "sha256": "2dbbe231beacc38d696909b398cb60c173c80cbef301bf7baf2ed3258e02a5cc"
+    }
+   ]
+  }
+ },
+ "methods": {
+  "bicubic": {
+   "label": "Bicubic (OpenCV)",
+   "per_scale": {
+    "2": {
+     "definition": "cv2.resize(LR, (sW, sH), interpolation=cv2.INTER_CUBIC)"
+    },
+    "3": {
+     "definition": "cv2.resize(LR, (sW, sH), interpolation=cv2.INTER_CUBIC)"
+    },
+    "4": {
+     "definition": "cv2.resize(LR, (sW, sH), interpolation=cv2.INTER_CUBIC)"
+    }
+   }
+  },
+  "imdn_rgb_pretrained": {
+   "label": "IMDN, upstream RGB weights (no thermal fine-tune)",
+   "per_scale": {
+    "2": {
+     "file": "checkpoints/pretrained/IMDN_x2.pth",
+     "file_sha256": "740b39653592bd3f49955a21cd9e16f2d37f2c413368cc09327601b8fbe42ce1",
+     "state_dict_sha256": "b112699ca81f4cbaeb1ca17aea66919c6fc70d272e6a26ce80d9da2baf83a5ae",
+     "params": 694404,
+     "source": "https://github.com/Zheng222/IMDN/raw/master/checkpoints/IMDN_x2.pth"
+    },
+    "3": {
+     "file": "checkpoints/pretrained/IMDN_x3.pth",
+     "file_sha256": "11b1716a19bc16e5e353e1db798d476169338e631eb170c82d765559888cb028",
+     "state_dict_sha256": "1a0fc9ab49730c10bcc6e63b5e23df4525ebbe6b97db755c329f9514cd0f1c54",
+     "params": 703059,
+     "source": "https://github.com/Zheng222/IMDN/raw/master/checkpoints/IMDN_x3.pth"
+    },
+    "4": {
+     "file": "checkpoints/pretrained/IMDN_x4.pth",
+     "file_sha256": "e660c38221147217a136debeb99eb304d62d9c0f73ac421ed66281b619719714",
+     "state_dict_sha256": "6ee0b6f7ca20096269ae0b3b4ec385926d0f002d5bdb1fa94ad4f7a882879d5c",
+     "params": 715176,
+     "source": "https://github.com/Zheng222/IMDN/raw/master/checkpoints/IMDN_x4.pth"
+    }
+   }
+  },
+  "imdn_thermal": {
+   "label": "IMDN, thermal fine-tune (this repo)",
+   "per_scale": {
+    "2": {
+     "file": "checkpoints/_x2/thermal_best.pth",
+     "file_sha256": "d06b0db857c963d2f825dcff54e9896567ebc3607afb8597b49bdedc2c9f7417",
+     "state_dict_sha256": "3e6e1adf722b1565c994df558d0b4ad61dd358a9995f916630a94aab8e73d9a6",
+     "params": 688636
+    },
+    "3": {
+     "file": "checkpoints/_x3/thermal_best.pth",
+     "file_sha256": "1de44ae8b4d2f6d4237885be5ffafc3a825696380b85db2132cd70f9364c29e2",
+     "state_dict_sha256": "d9ce9a52316bc3dafaa67247673881b140637df413ee64f3ba405bf29709fec3",
+     "params": 691521
+    },
+    "4": {
+     "file": "checkpoints/x4/thermal_best.pth",
+     "file_sha256": "7d70671f440ae78da79cc24492acc072660c4650dade8967e67aa6d002f25b7c",
+     "state_dict_sha256": "69d6e133620bf7ab25b6186d4eca2dd7ba42ead1fbc2cfbefebd8f22f7850f7a",
+     "params": 695560
+    }
+   }
+  }
+ },
+ "quality": [
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 31.80593659105839,
+   "ssim_mean": 0.8291136655838065,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 33.16637795452593,
+     "ssim": 0.8212887332336821
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 34.67474703961126,
+     "ssim": 0.8886660856615399
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 32.92276432568975,
+     "ssim": 0.8421013105507279
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 30.261531882842153,
+     "ssim": 0.8366436925846249
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 30.43369036469015,
+     "ssim": 0.8578542472242734
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 34.46047479217558,
+     "ssim": 0.890342994347182
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 30.365052885012922,
+     "ssim": 0.8290509303326689
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 29.831021374808056,
+     "ssim": 0.8008628108724914
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 28.04041649582315,
+     "ssim": 0.7154213564843973
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 30.831735568297525,
+     "ssim": 0.8520104331966732
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 32.131191342823755,
+     "ssim": 0.8510958205045509
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 28.756398865133054,
+     "ssim": 0.7874800985134556
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 28.843997326402967,
+     "ssim": 0.78642569743734
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 35.89518692790246,
+     "ssim": 0.8303488604304468
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 32.37059179501794,
+     "ssim": 0.8358257301180819
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 34.17844661254979,
+     "ssim": 0.8338484791450872
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 33.53729649468613,
+     "ssim": 0.8356650342874865
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 29.172476492851615,
+   "ssim_mean": 0.7867878346745497,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 31.0494293572862,
+     "ssim": 0.7836480251186271
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 32.19574584827524,
+     "ssim": 0.8598085328376606
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.41795591165345,
+     "ssim": 0.8058277554851228
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 26.960295616614065,
+     "ssim": 0.788547631886965
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.913796649356556,
+     "ssim": 0.812209806293132
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 31.99171294324501,
+     "ssim": 0.8581305494550385
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 27.67602935243472,
+     "ssim": 0.7878362873320404
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 26.68253672229217,
+     "ssim": 0.7524177955523406
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 25.63933502393548,
+     "ssim": 0.6700862446406305
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 27.674581666499304,
+     "ssim": 0.8010986439816493
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 29.262127101836786,
+     "ssim": 0.810894514712749
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.79620290212165,
+     "ssim": 0.7355626831772756
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.646438945471512,
+     "ssim": 0.7290799235503719
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.28950593052357,
+     "ssim": 0.7923571565702202
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 29.805736938368042,
+     "ssim": 0.7943264690006785
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.485041221878,
+     "ssim": 0.7963814131323357
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 31.445628246685718,
+     "ssim": 0.7971797567405092
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 32.56096229324239,
+   "ssim_mean": 0.8469490544876486,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 33.75829244258008,
+     "ssim": 0.8390195069826241
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 35.691858249053624,
+     "ssim": 0.9042510013079502
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 33.7444909197899,
+     "ssim": 0.8599303158016872
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 31.052092624224535,
+     "ssim": 0.8528711831653905
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 31.001827949118717,
+     "ssim": 0.8728631997225279
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 35.356071235306146,
+     "ssim": 0.9024178550273406
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 31.01429783831245,
+     "ssim": 0.8458044767035116
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 30.687742102879124,
+     "ssim": 0.8233673874935763
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 28.766871861280762,
+     "ssim": 0.7443988085498409
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 31.441065375029197,
+     "ssim": 0.8606850199483309
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 33.10190363237283,
+     "ssim": 0.873583069458104
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 29.34781332459287,
+     "ssim": 0.8057926792612787
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 29.708935391909115,
+     "ssim": 0.806027883213661
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 36.483026925338876,
+     "ssim": 0.8482809714851492
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 32.82907980629214,
+     "ssim": 0.850784355344745
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 35.09438246117858,
+     "ssim": 0.8526882148382876
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 34.45660684586161,
+     "ssim": 0.8553679979860191
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 32.560967294589126,
+   "ssim_mean": 0.8469553072268358,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 33.75658502000484,
+     "ssim": 0.8388865475627013
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 35.691929786521655,
+     "ssim": 0.9042565247969842
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 33.74516833301052,
+     "ssim": 0.8599691753925977
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 31.051263449889156,
+     "ssim": 0.85283451927042
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 30.999049636912105,
+     "ssim": 0.8729010151602867
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 35.356811170305384,
+     "ssim": 0.902439117856593
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 31.015007671670396,
+     "ssim": 0.8458415681781479
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 30.687365771445783,
+     "ssim": 0.8232952894684826
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 28.768648980072182,
+     "ssim": 0.7444784509755774
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 31.44189410021046,
+     "ssim": 0.8606878685112317
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 33.10247073680168,
+     "ssim": 0.8736095452659535
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 29.347827038207658,
+     "ssim": 0.8057143236594349
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 29.70779274438126,
+     "ssim": 0.8060654108964928
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 36.482590326022695,
+     "ssim": 0.84823985998343
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 32.830117659456796,
+     "ssim": 0.8508747825260329
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 35.09608229749293,
+     "ssim": 0.8527693262552357
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 34.455839285609635,
+     "ssim": 0.8553768970966058
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "pil_bicubic_antialias",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 31.79756555870389,
+   "ssim_mean": 0.8186153191835194,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 33.216296565819434,
+     "ssim": 0.8134110883484917
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 34.7452220891168,
+     "ssim": 0.8839255761890783
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 32.91580114010329,
+     "ssim": 0.8343478435931815
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 30.164102226593684,
+     "ssim": 0.8215597447453331
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 30.271911150897964,
+     "ssim": 0.8472023196329342
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 34.39459530811317,
+     "ssim": 0.883824911208215
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 30.301700539238677,
+     "ssim": 0.8101267310976625
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 29.75805675181644,
+     "ssim": 0.786254318820089
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 28.158487176768578,
+     "ssim": 0.6953166522559827
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 30.677555330288456,
+     "ssim": 0.837033316111699
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 32.074422077874225,
+     "ssim": 0.8396013930399553
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 28.674995242369295,
+     "ssim": 0.7653202418181191
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 28.753510576897764,
+     "ssim": 0.7658648831579754
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 36.134749401628234,
+     "ssim": 0.8327677088077701
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 32.375109488343405,
+     "ssim": 0.8318088468098553
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 34.30425673100203,
+     "ssim": 0.832954589357571
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 33.63784270109469,
+     "ssim": 0.8351402611259159
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 33.11643012797076,
+   "ssim_mean": 0.8551303177398396,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 34.25245252590263,
+     "ssim": 0.8457031183092693
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 36.40800142858873,
+     "ssim": 0.9088098972163335
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 34.20369585727012,
+     "ssim": 0.8664364649738665
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 31.613184242088824,
+     "ssim": 0.8667118675609207
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 32.042057752781275,
+     "ssim": 0.883179731438869
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 35.89399741705351,
+     "ssim": 0.9087495239869889
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 31.509667886039843,
+     "ssim": 0.8591507379842869
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 31.252940625226632,
+     "ssim": 0.8319922826700613
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 29.252325657706724,
+     "ssim": 0.7584150178699355
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 32.01707862480351,
+     "ssim": 0.8747911348691205
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 33.58485489337761,
+     "ssim": 0.8788943247921667
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 29.894929111585995,
+     "ssim": 0.8197621559559775
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 30.35178328294647,
+     "ssim": 0.8202019834561338
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 36.55544598079711,
+     "ssim": 0.8450969775509071
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 33.60496365197306,
+     "ssim": 0.8568418363154083
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 35.40020628342236,
+     "ssim": 0.8546786651416947
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 35.14172695393835,
+     "ssim": 0.8577996814853326
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 2,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 32.26403024757575,
+   "ssim_mean": 0.8267415830535595,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 33.52607667165423,
+     "ssim": 0.8185263910490315
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 35.34055304513093,
+     "ssim": 0.8908562327672264
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 33.3856197529004,
+     "ssim": 0.8417041834867981
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 30.724879797375344,
+     "ssim": 0.8335083036548456
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 30.808423643598456,
+     "ssim": 0.8566666551598622
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 34.9571230834814,
+     "ssim": 0.8901708687321288
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 30.67551280498968,
+     "ssim": 0.8208454802931253
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 30.317544686713283,
+     "ssim": 0.7972109557277257
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 28.52896559485041,
+     "ssim": 0.7073345933914326
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 31.119030543061513,
+     "ssim": 0.843991483006658
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 32.65147262439179,
+     "ssim": 0.8521961008626057
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 29.119677009329912,
+     "ssim": 0.7769093780272369
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 29.32554693810375,
+     "ssim": 0.7763906025111761
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 36.24002021407993,
+     "ssim": 0.8331106081559719
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 32.82503213604952,
+     "ssim": 0.837435934494939
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 34.71777889735657,
+     "ssim": 0.8367477608328678
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 34.225256765720424,
+     "ssim": 0.8410013797568782
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 27.987243236753287,
+   "ssim_mean": 0.6937088012693229,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 29.54136907384701,
+     "ssim": 0.6910907410389795
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 30.947935057419333,
+     "ssim": 0.7979413870017713
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 29.186757618171036,
+     "ssim": 0.7251273528309972
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 26.170966137707925,
+     "ssim": 0.6822083985784386
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.010476302641855,
+     "ssim": 0.7255731494321138
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 30.292475296243794,
+     "ssim": 0.7872302509886697
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 26.440792212231123,
+     "ssim": 0.6594088794546049
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 25.767788743006133,
+     "ssim": 0.6376424241209144
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 24.63617107102829,
+     "ssim": 0.5332749339136846
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 26.547995560566655,
+     "ssim": 0.6951515787840769
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 28.02727846060459,
+     "ssim": 0.7126350747627005
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 24.771012670127472,
+     "ssim": 0.5911277792417657
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 24.80603810994651,
+     "ssim": 0.5973048214984064
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 33.017963428554154,
+     "ssim": 0.7528052442233109
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 28.7392880600768,
+     "ssim": 0.7268330476003444
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 30.778854204314783,
+     "ssim": 0.7359450889014514
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 30.09997301831838,
+     "ssim": 0.7417494692062615
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 25.30282599038307,
+   "ssim_mean": 0.6279705954951061,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 27.38061128486131,
+     "ssim": 0.6277555127454493
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 28.524722309040143,
+     "ssim": 0.7487491488516185
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 26.82647884112601,
+     "ssim": 0.6658602589930896
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 22.630563279225576,
+     "ssim": 0.5969969219145559
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 22.757916089446653,
+     "ssim": 0.6546746235750682
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 27.85553056596795,
+     "ssim": 0.7379362685511573
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 23.759597278176482,
+     "ssim": 0.5965738264956141
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 22.767231647660445,
+     "ssim": 0.5681347491820116
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 21.94191942018438,
+     "ssim": 0.46409050903268634
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 23.662168352990882,
+     "ssim": 0.6214462337643747
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 25.3154930860456,
+     "ssim": 0.6571926234405824
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 21.751951925493366,
+     "ssim": 0.5161683974270788
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 21.653966292684473,
+     "ssim": 0.5203001424655889
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 31.352479545595013,
+     "ssim": 0.6875841870362153
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 25.772072760058833,
+     "ssim": 0.6599414797439463
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 28.432785576254638,
+     "ssim": 0.6720366303149996
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 27.762553581700384,
+     "ssim": 0.680058609882767
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 28.94191596510556,
+   "ssim_mean": 0.7341654918930456,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 30.665715496528804,
+     "ssim": 0.7397516888570514
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 31.91712929644226,
+     "ssim": 0.8279252985919525
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.012410550936078,
+     "ssim": 0.7644352269595664
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 27.060244995197547,
+     "ssim": 0.7144249116398459
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.667320856989832,
+     "ssim": 0.7616817938847987
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 30.972099132435723,
+     "ssim": 0.8129377264360486
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 27.12300058259776,
+     "ssim": 0.6862459392080226
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 26.75410450650395,
+     "ssim": 0.6881172762426097
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 25.565906116119844,
+     "ssim": 0.5842346511529726
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 27.38381124007924,
+     "ssim": 0.7168290664332932
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 28.979986268697296,
+     "ssim": 0.7586936146470313
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.59707873372179,
+     "ssim": 0.6332609939353403
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.806766311780883,
+     "ssim": 0.6391438344560116
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.503202875008185,
+     "ssim": 0.8052128138343085
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 29.41131539274832,
+     "ssim": 0.7671290328271202
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.19075943616722,
+     "ssim": 0.7882007430041403
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 31.40171961483988,
+     "ssim": 0.7925887500716619
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 28.941874106948667,
+   "ssim_mean": 0.7341513890108472,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 30.666773868657835,
+     "ssim": 0.7397779247338462
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 31.916364720306753,
+     "ssim": 0.8278849719321228
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.012235534695215,
+     "ssim": 0.7643899417582911
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 27.059985051987745,
+     "ssim": 0.7144265256700509
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.668149867509282,
+     "ssim": 0.761631878332919
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 30.971933527848257,
+     "ssim": 0.8128864392928733
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 27.12416116969458,
+     "ssim": 0.6863665073165659
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 26.75428569454532,
+     "ssim": 0.6880937042572308
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 25.565619343774017,
+     "ssim": 0.5841784992995143
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 27.383265278823238,
+     "ssim": 0.7167903504818047
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 28.979380654484004,
+     "ssim": 0.758624114240971
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.597607800124802,
+     "ssim": 0.6333129818505596
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.806603943871597,
+     "ssim": 0.6391655173646535
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.50338231159033,
+     "ssim": 0.8053549765554039
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 29.41074637959817,
+     "ssim": 0.7670784372089255
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.18991097926085,
+     "ssim": 0.7881316501567325
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 31.401453691355368,
+     "ssim": 0.7924791927319376
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "pil_bicubic_antialias",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 29.65618544579474,
+   "ssim_mean": 0.7250806789765549,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 31.3450052870636,
+     "ssim": 0.7319888675829236
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 32.60135633415545,
+     "ssim": 0.8217322126314607
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.80176532584218,
+     "ssim": 0.7571000397159793
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 27.701163612538306,
+     "ssim": 0.7038729810855675
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 27.693694020653442,
+     "ssim": 0.7516215742846946
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 31.854575084458606,
+     "ssim": 0.8113717162648928
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 28.06235504231593,
+     "ssim": 0.6821758947164186
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 27.499269028143253,
+     "ssim": 0.6715777157425509
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 26.527035780805438,
+     "ssim": 0.5717748908480297
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 27.880943644891026,
+     "ssim": 0.7164229381004981
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 29.622127960155176,
+     "ssim": 0.7363486990015164
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 26.370124696396097,
+     "ssim": 0.615435304156495
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 26.415798718737694,
+     "ssim": 0.6250013193140788
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 35.070455830503484,
+     "ssim": 0.8008583972814795
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 30.23618439375262,
+     "ssim": 0.7647100802999859
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.603644815805396,
+     "ssim": 0.7798077463971488
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 31.869653002292875,
+     "ssim": 0.7845711651777145
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 30.59974947959078,
+   "ssim_mean": 0.7668232911351945,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 32.03718358980492,
+     "ssim": 0.7647688564647034
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 33.76370174759485,
+     "ssim": 0.8501171449359087
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 31.701543754407083,
+     "ssim": 0.7917210426668018
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 28.841520089602643,
+     "ssim": 0.7598442267116365
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 28.37641986095894,
+     "ssim": 0.7884870821114008
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 33.04871440721806,
+     "ssim": 0.8436082526379617
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 28.802989024805683,
+     "ssim": 0.7378524090393382
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 28.56357663272655,
+     "ssim": 0.7222362292200497
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 27.256749488713847,
+     "ssim": 0.6257403336266071
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 29.06201741621237,
+     "ssim": 0.7689277494377788
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 30.738123990508768,
+     "ssim": 0.788989291992347
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 27.006329498413997,
+     "ssim": 0.6775646194902343
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 27.563129334601,
+     "ssim": 0.6911290777965096
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 35.52320445228047,
+     "ssim": 0.8107584334951842
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 31.14820449859634,
+     "ssim": 0.7949618241296472
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 33.644048381040946,
+     "ssim": 0.8059915776134566
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 33.1182849855568,
+     "ssim": 0.8132977979287422
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 3,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 29.855263134029123,
+   "ssim_mean": 0.7273398429054361,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 31.40145725272303,
+     "ssim": 0.7296199293379326
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 32.8081590402202,
+     "ssim": 0.823585994239113
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.940472725268492,
+     "ssim": 0.7569423137481118
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 28.032779802175156,
+     "ssim": 0.7097795154006036
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 27.912214949043317,
+     "ssim": 0.7564938498659851
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 32.06367056915688,
+     "ssim": 0.8123348052141641
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 28.13856251973792,
+     "ssim": 0.6808890139474989
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 27.72842068317509,
+     "ssim": 0.6754451798724189
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 26.708766206057568,
+     "ssim": 0.5747163372797506
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 28.12614273329984,
+     "ssim": 0.7178053083413324
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 29.899476230341904,
+     "ssim": 0.7453928569154606
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 26.511504599114232,
+     "ssim": 0.6184615775738197
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 26.688463493162832,
+     "ssim": 0.6282977347078741
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 35.14953836355521,
+     "ssim": 0.7992524733129284
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 30.39026175169146,
+     "ssim": 0.765482299629826
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.86364704096815,
+     "ssim": 0.7819699752500247
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 32.17593531880383,
+     "ssim": 0.78830816475557
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 27.091555921738685,
+   "ssim_mean": 0.6521713733295653,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 29.001003957146114,
+     "ssim": 0.6669569016619207
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 29.9912824249203,
+     "ssim": 0.768320143737445
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 28.188971053029,
+     "ssim": 0.6924025657581699
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 24.9296463728621,
+     "ssim": 0.6102538973278987
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 24.893385052403477,
+     "ssim": 0.6779459178939043
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 29.013995293342703,
+     "ssim": 0.7455138328967751
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 25.605780978064736,
+     "ssim": 0.5939022807259648
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 24.968863752405035,
+     "ssim": 0.5931133526679636
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 23.967835088132908,
+     "ssim": 0.486998583370909
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 25.072876955161398,
+     "ssim": 0.6216187998266387
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 26.960820349278247,
+     "ssim": 0.6572521776711178
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 23.708745697226377,
+     "ssim": 0.5111749093269172
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 23.665214658925077,
+     "ssim": 0.5246365737195515
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 33.34780339627435,
+     "ssim": 0.7675121437443292
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 27.80355074391923,
+     "ssim": 0.7072695245895196
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 30.205488270254524,
+     "ssim": 0.7282059285926726
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 29.231186626212097,
+     "ssim": 0.7338358130909135
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 24.256512829583265,
+   "ssim_mean": 0.5979297781846838,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 26.748505329069708,
+     "ssim": 0.6211269148839875
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 27.414698020298722,
+     "ssim": 0.7390274890171862
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 25.42953974894038,
+     "ssim": 0.6495845567384579
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 21.084033051991273,
+     "ssim": 0.5291347404564157
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 21.54824957014263,
+     "ssim": 0.6126161961101495
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 25.911934235739498,
+     "ssim": 0.6986490201057146
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 22.45745112660793,
+     "ssim": 0.5377522764028556
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 22.352546399219865,
+     "ssim": 0.5450385184429045
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 21.141384774711756,
+     "ssim": 0.42423746205815677
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 21.56351977683689,
+     "ssim": 0.5352050072044513
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 23.87672539020036,
+     "ssim": 0.6083348170978713
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 20.706913448817524,
+     "ssim": 0.4494596238544301
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 20.23876278265858,
+     "ssim": 0.4476617040510967
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 31.86810298260141,
+     "ssim": 0.731202057764527
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 24.787842119173597,
+     "ssim": 0.653855021030547
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 28.120177033980404,
+     "ssim": 0.6892732534832553
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 27.110332311924942,
+     "ssim": 0.6926475704376174
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 27.873001624343985,
+   "ssim_mean": 0.6815836622756488,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 29.90557350602128,
+     "ssim": 0.7017403322936684
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 30.807880587003925,
+     "ssim": 0.7915150112191922
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 28.97885976084128,
+     "ssim": 0.71902393474588
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 25.88006913341211,
+     "ssim": 0.6452644594594764
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 25.449691900243998,
+     "ssim": 0.7050364727021804
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 29.791010804847442,
+     "ssim": 0.7665656942561054
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 26.322434757609734,
+     "ssim": 0.6187159719079103
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 25.67234562027344,
+     "ssim": 0.6253836584415471
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 24.857439574261253,
+     "ssim": 0.5283922526541733
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 25.788563623575733,
+     "ssim": 0.6416777913373094
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 27.922142643522143,
+     "ssim": 0.6972813351036355
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 24.47829968007962,
+     "ssim": 0.5473849532679463
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 24.572284852541397,
+     "ssim": 0.5613555099685188
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.09633799677812,
+     "ssim": 0.7908656967027234
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 28.20883958074988,
+     "ssim": 0.7275044643384091
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 31.25134064709418,
+     "ssim": 0.7610130610057411
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 29.85791294499224,
+     "ssim": 0.758201659281613
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 27.872675482933147,
+   "ssim_mean": 0.6815994190036134,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 29.906461279425045,
+     "ssim": 0.7018334041778318
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 30.80907530525305,
+     "ssim": 0.7914761258935362
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 28.97769861933666,
+     "ssim": 0.718981285677793
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 25.879223498649687,
+     "ssim": 0.6453264727778105
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 25.449522673027104,
+     "ssim": 0.7050438246480575
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 29.7903971743984,
+     "ssim": 0.7665860781619378
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 26.32170161414232,
+     "ssim": 0.6186987522926589
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 25.67280324508026,
+     "ssim": 0.6255245919099668
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 24.856271948239,
+     "ssim": 0.5282790915918394
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 25.78807727401309,
+     "ssim": 0.6417030167047022
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 27.922822616240893,
+     "ssim": 0.6973667386511155
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 24.478300648330013,
+     "ssim": 0.5472573639732766
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 24.571662544114695,
+     "ssim": 0.5613442821228786
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.094564898515216,
+     "ssim": 0.7908064199463001
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 28.20875329198224,
+     "ssim": 0.7275813383923945
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 31.250274568012234,
+     "ssim": 0.761116549088295
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 29.85787201110363,
+     "ssim": 0.7582647870510332
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "pil_bicubic_antialias",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 28.51856351766115,
+   "ssim_mean": 0.662445349611809,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 30.463704839953035,
+     "ssim": 0.6842749853053438
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 31.541155920558527,
+     "ssim": 0.7791464901087474
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 29.641012375534643,
+     "ssim": 0.7056372021113838
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 26.330557203228963,
+     "ssim": 0.6161331151508155
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.448246063992574,
+     "ssim": 0.6875994262402905
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 30.338514851097244,
+     "ssim": 0.7547675056263765
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 27.014509646231414,
+     "ssim": 0.5984855532628741
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 26.394073342273806,
+     "ssim": 0.6016595586173548
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 25.593146293338055,
+     "ssim": 0.4969921042063322
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 26.306729070127126,
+     "ssim": 0.622120490966891
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 28.433978149185293,
+     "ssim": 0.6665098856799495
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.289188031439775,
+     "ssim": 0.5178588313426634
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.15463091180901,
+     "ssim": 0.5307555830218801
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.56490921093571,
+     "ssim": 0.7855172388164846
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 28.990783842009044,
+     "ssim": 0.7192332682563845
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 31.565889219340075,
+     "ssim": 0.7450270129045131
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 30.744550829185286,
+     "ssim": 0.7498526917824699
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 29.29354489549393,
+   "ssim_mean": 0.7027737264529518,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 30.968485724086023,
+     "ssim": 0.7127046599559111
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 32.48603857250372,
+     "ssim": 0.8083218049919365
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 30.402555210304772,
+     "ssim": 0.7378922204798016
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 27.368582213101654,
+     "ssim": 0.6735009498657419
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.982655279570167,
+     "ssim": 0.7253682428301007
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 31.428266883498644,
+     "ssim": 0.7884104131319284
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 27.4956091287803,
+     "ssim": 0.6470928620063322
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 27.21071226684827,
+     "ssim": 0.6465477697036957
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 26.399107427671233,
+     "ssim": 0.5509418874755966
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 27.257127800582705,
+     "ssim": 0.6776787588467506
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 29.26531033476765,
+     "ssim": 0.7160909844024387
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.85109107452673,
+     "ssim": 0.5790368980753712
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.804174688822346,
+     "ssim": 0.5867710315251505
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 35.11268927733327,
+     "ssim": 0.7945741368146483
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 29.79132752472546,
+     "ssim": 0.7503504027477024
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 32.47441973789207,
+     "ssim": 0.7741164122983121
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 31.692110078381802,
+     "ssim": 0.7777539145487622
+    }
+   ]
+  },
+  {
+   "set": "repo17",
+   "scale": 4,
+   "degradation": "pil_bicubic_antialias",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 28.56801226128186,
+   "ssim_mean": 0.6593900082174945,
+   "n_images": 17,
+   "per_image": [
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-001950-CDtq2ngsH6zBK6rCE.png",
+     "psnr": 30.41841049873343,
+     "ssim": 0.6790582538254467
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-002100-QzJMCRkKRdp8HFavR.png",
+     "psnr": 31.61421120812879,
+     "ssim": 0.7793047201102818
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-004350-FpBDZ5wooJyu44oWw.png",
+     "psnr": 29.7125233862285,
+     "ssim": 0.7024708612739797
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-005100-TKGLg7WCgGTSMvvSb.png",
+     "psnr": 26.434475043864126,
+     "ssim": 0.6142198018276493
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008100-WcCrbQrnAKauPjjxr.png",
+     "psnr": 26.519801514404296,
+     "ssim": 0.6867055993124782
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-008850-PwmQvrv7sTwFpjC8J.png",
+     "psnr": 30.412690532738257,
+     "ssim": 0.7515427007280147
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009000-qYkPyT2NyqDDHJetK.png",
+     "psnr": 26.933831628605446,
+     "ssim": 0.5877504996126559
+    },
+    {
+     "image": "video-2Af3dwvs6YPfwSSf6-frame-009450-Mq8cJtpFF6KK2wPQe.png",
+     "psnr": 26.467271646112852,
+     "ssim": 0.5990659200357014
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-000450-cnk2tYwg7Eq6NTsRM.png",
+     "psnr": 25.698402349683764,
+     "ssim": 0.49727485284320994
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-001050-4tYw9mXhCnt3eqBZH.png",
+     "psnr": 26.322799339935294,
+     "ssim": 0.6136866067754503
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-003150-ZBESWkBAd5xTLMSKw.png",
+     "psnr": 28.522693104655836,
+     "ssim": 0.6678008230637276
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004350-vbB6unBkk36yeEgxd.png",
+     "psnr": 25.31259303768467,
+     "ssim": 0.5126693153355406
+    },
+    {
+     "image": "video-2MbnnGTv27EBLGqiQ-frame-004950-W9Ajic6WcWtwAv39M.png",
+     "psnr": 25.18579690126698,
+     "ssim": 0.5239203664302038
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-003304-rSyv5H6PxaxqxRuCG.png",
+     "psnr": 34.550477443338195,
+     "ssim": 0.7832282448836261
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004120-yzPMaju2g6sGu9w5n.png",
+     "psnr": 29.05572440444162,
+     "ssim": 0.716928866771681
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-004944-9DddDnxwZfNK8ea7a.png",
+     "psnr": 31.6729318557495,
+     "ssim": 0.7453804031359718
+    },
+    {
+     "image": "video-2rsjnZFyGQGeynfbv-frame-006195-RgnnNHJr8x8bu5hYz.png",
+     "psnr": 30.821574546220113,
+     "ssim": 0.7486223037317878
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 41.09665451812751,
+   "ssim_mean": 0.9676237805313328,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 47.99680262970092,
+     "ssim": 0.9917913526458415
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 33.741967284453544,
+     "ssim": 0.9720966465019548
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 33.805567420823095,
+     "ssim": 0.9757072157060935
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 33.34495219361732,
+     "ssim": 0.9724381810495346
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 34.26596259169551,
+     "ssim": 0.9743168987778366
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 36.65400424205674,
+     "ssim": 0.9681353516458601
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 41.41370863235998,
+     "ssim": 0.9718029229861223
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 41.859888657536544,
+     "ssim": 0.9768634835264689
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 52.37808899105132,
+     "ssim": 0.9958144735121773
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 45.73047116415036,
+     "ssim": 0.9913237065016077
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 47.26782247350927,
+     "ssim": 0.9927641623516323
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 45.89898351853499,
+     "ssim": 0.9826537572065666
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 47.207692289437276,
+     "ssim": 0.9931638056662132
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 46.45646599204396,
+     "ssim": 0.9918874633415293
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 47.12969446230325,
+     "ssim": 0.9900183005365051
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 45.11963417222841,
+     "ssim": 0.9883467680686984
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 46.4065238274013,
+     "ssim": 0.9891622158106819
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 48.839372119232316,
+     "ssim": 0.9928642731823576
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 49.73102869327667,
+     "ssim": 0.9933733676643608
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 38.37342303906765,
+     "ssim": 0.9317568821938143
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 37.01903553487815,
+     "ssim": 0.9108752200526797
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 38.40175396396309,
+     "ssim": 0.9499125325590074
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 34.68648726059754,
+     "ssim": 0.9572576680979001
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 38.85592375442205,
+     "ssim": 0.9600371220195112
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 39.4046025989047,
+     "ssim": 0.9381699761168941
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 39.20404666866003,
+     "ssim": 0.933832532921785
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 41.71692039078741,
+     "ssim": 0.966491426812485
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 39.277391178045086,
+     "ssim": 0.9486907206946936
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 43.6930237627498,
+     "ssim": 0.9759884388976051
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 42.93296860172433,
+     "ssim": 0.9728836104202404
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 43.04470556924167,
+     "ssim": 0.9732619540946119
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 43.62517745409163,
+     "ssim": 0.979567112691767
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 43.909498539158974,
+     "ssim": 0.9778237010538338
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 41.61573858665476,
+     "ssim": 0.97190573097798
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 42.716307230754616,
+     "ssim": 0.9717902277180764
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 42.82327530987637,
+     "ssim": 0.9715973982161952
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 38.75847745549156,
+     "ssim": 0.9531975519253416
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 40.509379079846056,
+     "ssim": 0.9679855054067603
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 41.725129558709035,
+     "ssim": 0.953874756873126
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 42.01979464090578,
+     "ssim": 0.9551148814414423
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 39.111632424973976,
+     "ssim": 0.9382934252353
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 39.76322547277167,
+     "ssim": 0.9335237217871496
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 41.657225341721755,
+     "ssim": 0.9706676180139053
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 37.22414037098592,
+     "ssim": 0.9795337531662288
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 38.37612927631832,
+     "ssim": 0.9869695566513139
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 32.40385867664838,
+     "ssim": 0.9639233815678113
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 39.111632424973976,
+     "ssim": 0.9382934252353
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 33.95362935587059,
+     "ssim": 0.92969819100543
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 32.851049907132705,
+     "ssim": 0.9480067826911635
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 48.57707465422028,
+     "ssim": 0.99328232115544
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 33.338090984942504,
+     "ssim": 0.9400813327211299
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 38.204542425505494,
+   "ssim_mean": 0.9431739344031259,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 45.569592152574685,
+     "ssim": 0.9861966552469621
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 32.3664516159721,
+     "ssim": 0.9584084276959624
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 32.35166566257654,
+     "ssim": 0.9690268345824439
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 30.486529432916573,
+     "ssim": 0.957966192706521
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 31.50091440819097,
+     "ssim": 0.9614847194281799
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 36.27626432462658,
+     "ssim": 0.958843030432372
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 39.89981692863893,
+     "ssim": 0.9624381086530776
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 39.139443475220816,
+     "ssim": 0.9616037399858013
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 51.396080116501885,
+     "ssim": 0.9945913558553183
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 43.156241079102514,
+     "ssim": 0.9853690085953101
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 45.16850468241537,
+     "ssim": 0.9886441239740057
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 44.27399490568686,
+     "ssim": 0.9768294076858705
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 45.70701553536764,
+     "ssim": 0.9899337429874667
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 44.18760874320651,
+     "ssim": 0.9869795043806212
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 44.456859012399555,
+     "ssim": 0.9824754160514282
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 43.331353400919866,
+     "ssim": 0.9814723571856094
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 44.14231389317436,
+     "ssim": 0.9823722144844164
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 46.54195421636878,
+     "ssim": 0.9901607706112948
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 48.0260108532572,
+     "ssim": 0.9917831935076429
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 34.629187344609214,
+     "ssim": 0.8588166965576431
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 34.4620533281359,
+     "ssim": 0.8679801978658958
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 34.63503362299751,
+     "ssim": 0.903541981700852
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 30.67767553486993,
+     "ssim": 0.9303219319012311
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 34.631761470848616,
+     "ssim": 0.9269239694572527
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 36.41937410408545,
+     "ssim": 0.885282421780498
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 35.774673877428654,
+     "ssim": 0.8839845072500714
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 38.01271823432291,
+     "ssim": 0.9380837901396587
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 35.40038529338719,
+     "ssim": 0.9024762830687436
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 39.78397249932865,
+     "ssim": 0.9574214541237712
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 39.516476617585994,
+     "ssim": 0.9513178076436416
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 39.68710310779325,
+     "ssim": 0.955433532830724
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 39.49976005154878,
+     "ssim": 0.9627502653704907
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 40.5249169784238,
+     "ssim": 0.9628302096840062
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 38.30466203186592,
+     "ssim": 0.9533896212577365
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 39.60641291569773,
+     "ssim": 0.9519172497939403
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 39.99155517323853,
+     "ssim": 0.9534563425176013
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 32.05714066374089,
+     "ssim": 0.9076395531082474
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 37.06637346390006,
+     "ssim": 0.942587999240248
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 38.5902477381492,
+     "ssim": 0.9175200779355595
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 38.79126992311355,
+     "ssim": 0.918745355019541
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 36.180429669278695,
+     "ssim": 0.8864257894230926
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 36.47354904419228,
+     "ssim": 0.8824877646387671
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 38.11076203516091,
+     "ssim": 0.9470453068464069
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 32.96451094079268,
+     "ssim": 0.9627717089545604
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 37.3560812363312,
+     "ssim": 0.9813014482389094
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 29.684452762265643,
+     "ssim": 0.9331048947338082
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 36.180429669278695,
+     "ssim": 0.8864257894230926
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 30.184959074021766,
+     "ssim": 0.8635220948058202
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.954417746005046,
+     "ssim": 0.8951087893977948
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 45.587715297309465,
+     "ssim": 0.9878156853125443
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 30.712987811954257,
+     "ssim": 0.8768613304869587
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 42.00462025037155,
+   "ssim_mean": 0.964942486272661,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 48.251685559269966,
+     "ssim": 0.9918571385238839
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 36.59893539904358,
+     "ssim": 0.9743130418117454
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 36.20595770076648,
+     "ssim": 0.9777994585234412
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 36.10815829238701,
+     "ssim": 0.9763699771842566
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 36.772408409149115,
+     "ssim": 0.9767479228427765
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 38.27650202821911,
+     "ssim": 0.9690316830097164
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 42.224521359965344,
+     "ssim": 0.9727035503254612
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 42.86466144293901,
+     "ssim": 0.9765211900018338
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 53.227209199417054,
+     "ssim": 0.9960997939355544
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 47.3378782452358,
+     "ssim": 0.9917919624228477
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 48.11368456571095,
+     "ssim": 0.9929688667018147
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 45.77357312096112,
+     "ssim": 0.980846561418987
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 49.08863140262515,
+     "ssim": 0.9933655341421658
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 46.961737194436004,
+     "ssim": 0.9921976022784592
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 47.51906798627716,
+     "ssim": 0.9904018828434024
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 45.261552393025624,
+     "ssim": 0.9885638743645367
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 46.61711447604073,
+     "ssim": 0.9895000001352382
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 49.25011681677137,
+     "ssim": 0.9928704546694538
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 50.210558238057445,
+     "ssim": 0.993541519317996
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 37.97077968378461,
+     "ssim": 0.9206659310475567
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 36.78892660285584,
+     "ssim": 0.9041147281537262
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 37.89993726977645,
+     "ssim": 0.9421952231952289
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 38.63565838933984,
+     "ssim": 0.9649435194340288
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 39.20308991928495,
+     "ssim": 0.9553968421338027
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 39.00896243497399,
+     "ssim": 0.9215074186736297
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 38.57340285486466,
+     "ssim": 0.9154954141995569
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 41.69256146794906,
+     "ssim": 0.9607062366189006
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 39.08373748871063,
+     "ssim": 0.935784670131204
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 44.304444124223146,
+     "ssim": 0.9762323849984641
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 43.323619843559385,
+     "ssim": 0.9723102747929812
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 43.47991632250664,
+     "ssim": 0.9732414904384835
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 44.23746037719252,
+     "ssim": 0.9802697410116498
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 44.36656645999649,
+     "ssim": 0.9784118088634619
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 42.408773555724395,
+     "ssim": 0.9731855284886166
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 43.04205019677592,
+     "ssim": 0.9715233489999995
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 43.20222371519716,
+     "ssim": 0.9719705185378946
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 40.01725893075552,
+     "ssim": 0.945754456013499
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 40.809086682025566,
+     "ssim": 0.9644997695377163
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 41.155731327169896,
+     "ssim": 0.9438475726301663
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 41.37505712844092,
+     "ssim": 0.9452234518409797
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 38.92163101146301,
+     "ssim": 0.9220273028950137
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 38.92824726027777,
+     "ssim": 0.915640889215493
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 42.03981078204236,
+     "ssim": 0.9696300633645372
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 38.3416283672253,
+     "ssim": 0.9824575189642513
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 39.90060300331293,
+     "ssim": 0.9889191128840751
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 37.0584840258445,
+     "ssim": 0.9715745439924042
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 38.92163101146301,
+     "ssim": 0.9220273028950137
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 37.44136704875943,
+     "ssim": 0.9259086617652933
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 36.487434821085515,
+     "ssim": 0.9477170537938702
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 48.850299316674736,
+     "ssim": 0.9927412861971574
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 38.101297515394805,
+     "ssim": 0.9386507197434882
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 2,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 42.00284328844069,
+   "ssim_mean": 0.9649656888617703,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 48.243294142369855,
+     "ssim": 0.991848321096284
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 36.601963675884285,
+     "ssim": 0.9743361639983356
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 36.209517020773156,
+     "ssim": 0.9777820220691428
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 36.105304501859926,
+     "ssim": 0.9763459560104191
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 36.771722471187445,
+     "ssim": 0.9767290616029113
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 38.27538642401627,
+     "ssim": 0.96902222112097
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 42.21890540983356,
+     "ssim": 0.9726589028318172
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 42.86746059917154,
+     "ssim": 0.9765441962065788
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 53.20332829029148,
+     "ssim": 0.9960843211302249
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 47.327037405489854,
+     "ssim": 0.99177088810107
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 48.10446865931242,
+     "ssim": 0.9929688444548141
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 45.76586127623762,
+     "ssim": 0.9808417236974649
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 49.07937342088501,
+     "ssim": 0.9933505499227282
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 46.95660765378176,
+     "ssim": 0.9921921271483075
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 47.51841198882339,
+     "ssim": 0.990405169579897
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 45.25964334309996,
+     "ssim": 0.9885611623690372
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 46.61532643786867,
+     "ssim": 0.9895014485212068
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 49.24003377301731,
+     "ssim": 0.9928687589858952
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 50.19004037555945,
+     "ssim": 0.9935248864358625
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 37.97600852781506,
+     "ssim": 0.9208068460098205
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 36.789786020102575,
+     "ssim": 0.9041531485158061
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 37.89551197574939,
+     "ssim": 0.9422385953477423
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 38.63901302625899,
+     "ssim": 0.9649698109828576
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 39.2061872618192,
+     "ssim": 0.955487684450972
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 39.01407563105232,
+     "ssim": 0.9216208290069475
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 38.57267826413048,
+     "ssim": 0.915496910117582
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 41.699563214816735,
+     "ssim": 0.9608047157798069
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 39.08454047523691,
+     "ssim": 0.9358171559975884
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 44.2957480568261,
+     "ssim": 0.9761864131144938
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 43.31854858205336,
+     "ssim": 0.9722812655894109
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 43.47365306640279,
+     "ssim": 0.9732113891940983
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 44.23153077264564,
+     "ssim": 0.9802617346510806
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 44.36445410686147,
+     "ssim": 0.9784260429635094
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 42.40930696793188,
+     "ssim": 0.9732136256788111
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 43.03369294788773,
+     "ssim": 0.9714721994008346
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 43.2022745326967,
+     "ssim": 0.9719741041015877
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 40.02073843847405,
+     "ssim": 0.9458377389537291
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 40.81544987350259,
+     "ssim": 0.9645885634081318
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 41.15953964477398,
+     "ssim": 0.9439301247996243
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 41.380515772207616,
+     "ssim": 0.945322879682903
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 38.92537181487662,
+     "ssim": 0.9221158747474745
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 38.93216556012096,
+     "ssim": 0.9157289197876041
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 42.036604554379494,
+     "ssim": 0.9696339990179897
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 38.34004227001495,
+     "ssim": 0.9824543546103881
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 39.90486546067294,
+     "ssim": 0.9889347993756576
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 37.05858937265845,
+     "ssim": 0.971590365402558
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 38.92537181487662,
+     "ssim": 0.9221158747474745
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 37.443879395363865,
+     "ssim": 0.9260090425490412
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 36.48612224589299,
+     "ssim": 0.9477767940720551
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 48.84425823003296,
+     "ssim": 0.9927417128537372
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 38.11123296287641,
+     "ssim": 0.9387098917559954
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 36.11621204670054,
+   "ssim_mean": 0.9150947499201646,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 42.24084559759841,
+     "ssim": 0.9698052405577545
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 28.930663810753856,
+     "ssim": 0.9291058669012082
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.391682992975866,
+     "ssim": 0.9528143460617426
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.46815681031029,
+     "ssim": 0.940002477388683
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 29.913173799974125,
+     "ssim": 0.9467985100652392
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 32.747299007869934,
+     "ssim": 0.9368932984467876
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 37.107459073681966,
+     "ssim": 0.9355808192753112
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 36.303646883914816,
+     "ssim": 0.9267595789760974
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 48.299736426035096,
+     "ssim": 0.9905446468870535
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 39.54804128472906,
+     "ssim": 0.9657686789680656
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 41.36348230673125,
+     "ssim": 0.9747377291724908
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 41.91716895470392,
+     "ssim": 0.9654548591638002
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 40.81946257205226,
+     "ssim": 0.980160137031163
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 41.00014506977048,
+     "ssim": 0.9725585507623373
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 40.79377048209259,
+     "ssim": 0.9583980766068333
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 40.48310789296741,
+     "ssim": 0.9619315942201105
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 40.99512618027625,
+     "ssim": 0.9625799290574849
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 43.640430274712216,
+     "ssim": 0.9822673604062307
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 45.10383742179051,
+     "ssim": 0.9871205318975943
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 34.152049222368824,
+     "ssim": 0.8357388061864366
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 33.00395279028295,
+     "ssim": 0.8051426877325143
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 34.025826395611595,
+     "ssim": 0.8745478520457877
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 32.91482668715702,
+     "ssim": 0.9202841599155835
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 32.903378725881325,
+     "ssim": 0.872350325218141
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 35.06143511714305,
+     "ssim": 0.8380410516672115
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 34.14966367504948,
+     "ssim": 0.8265460568544819
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 36.270305847402696,
+     "ssim": 0.9065144531183095
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 33.82250637902866,
+     "ssim": 0.8558319684413846
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 38.237530966435,
+     "ssim": 0.9314383033436117
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 37.41227258815076,
+     "ssim": 0.9201919786724017
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 37.542558349662684,
+     "ssim": 0.9244204251520206
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 38.08607541886204,
+     "ssim": 0.9440095622181116
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 38.81116751036637,
+     "ssim": 0.9432799611327475
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 35.769225035492596,
+     "ssim": 0.9182436530212525
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 37.380556624167966,
+     "ssim": 0.9202108641667923
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 37.475602438173446,
+     "ssim": 0.9202594450862004
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 34.95129995399525,
+     "ssim": 0.8707871366871724
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 34.736099601874045,
+     "ssim": 0.9051016772616532
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 36.998844118461214,
+     "ssim": 0.8855732052715943
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 37.296442562822406,
+     "ssim": 0.8849408217992388
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 34.87703113354064,
+     "ssim": 0.840138156611114
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 35.11558057789592,
+     "ssim": 0.8316299775330386
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 35.83534888482135,
+     "ssim": 0.9068347249981157
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 30.932404329356253,
+     "ssim": 0.9310665817246018
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 33.02456321153814,
+     "ssim": 0.9519855603843562
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 27.865746926429583,
+     "ssim": 0.9052632403797802
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 34.87703113354064,
+     "ssim": 0.840138156611114
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 29.589566342585762,
+     "ssim": 0.8265117710973331
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.290360278548366,
+     "ssim": 0.8644096847504049
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 42.418109209273744,
+     "ssim": 0.9754132541460708
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 29.03221550286734,
+     "ssim": 0.853704510853841
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 33.256915407938365,
+   "ssim_mean": 0.8798709561331183,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 39.667353863854665,
+     "ssim": 0.9529435872245317
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 27.45541591444622,
+     "ssim": 0.903685785241515
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 28.286425585168615,
+     "ssim": 0.9352227197755716
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 26.528036420769293,
+     "ssim": 0.9157460146420864
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 27.713492564304513,
+     "ssim": 0.9240477933386761
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 31.778134803275893,
+     "ssim": 0.9131306158296902
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 35.37811759068882,
+     "ssim": 0.9128100494938443
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 34.136435310228535,
+     "ssim": 0.8960890881118311
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 46.2041158425282,
+     "ssim": 0.9867808712152032
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 36.387713005128596,
+     "ssim": 0.9454054090976217
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 39.12302526142041,
+     "ssim": 0.9622421166241556
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 38.56541740379018,
+     "ssim": 0.9469359507540592
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 39.597117353894255,
+     "ssim": 0.9714451472495368
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 38.36091194062131,
+     "ssim": 0.9582096507282732
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 38.27254711938363,
+     "ssim": 0.9363715942945604
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 38.38707933551609,
+     "ssim": 0.9426151572524335
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 38.70898075350578,
+     "ssim": 0.9434696930554758
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 40.257505937876005,
+     "ssim": 0.9737426129647041
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 42.49430309665715,
+     "ssim": 0.9828707287179145
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 32.102155070945734,
+     "ssim": 0.7847241465779576
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 31.193275510185458,
+     "ssim": 0.7584507929903664
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 31.040459185499493,
+     "ssim": 0.8270623713982019
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 27.974958792167477,
+     "ssim": 0.8767832810132357
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 28.852604881597554,
+     "ssim": 0.8161004064381931
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 32.5535169240159,
+     "ssim": 0.7825137832516628
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 31.530055379486967,
+     "ssim": 0.7719550428441259
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 32.296476015772775,
+     "ssim": 0.861023179473998
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 30.214931054020298,
+     "ssim": 0.8001008552752196
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 33.594265814064215,
+     "ssim": 0.8939739581202107
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 33.77788818081884,
+     "ssim": 0.8797312306201711
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 33.351426790064245,
+     "ssim": 0.8922663837042231
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 33.68189731942596,
+     "ssim": 0.9105880565032748
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 35.31499475657633,
+     "ssim": 0.9158948706000959
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 31.78530147527212,
+     "ssim": 0.8805327302219724
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 33.94314941148439,
+     "ssim": 0.8809539545669394
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 34.227001815580785,
+     "ssim": 0.8864551618394152
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 32.29664488588032,
+     "ssim": 0.8235052927950801
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 30.886142183004264,
+     "ssim": 0.8563501418200092
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 34.49576177196653,
+     "ssim": 0.8406260644472229
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 34.96663470921603,
+     "ssim": 0.8417129986031693
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 32.1978363341428,
+     "ssim": 0.7849348582506817
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 32.90771228514907,
+     "ssim": 0.7763948785957946
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 32.45842747434047,
+     "ssim": 0.8648057492355684
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 27.03554566258729,
+     "ssim": 0.8979133899507521
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 32.24652489676646,
+     "ssim": 0.931594512871773
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 24.85697832055856,
+     "ssim": 0.8433666689320092
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 32.1978363341428,
+     "ssim": 0.7849348582506817
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 25.9013066225679,
+     "ssim": 0.7577888117272717
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 25.25755796467037,
+     "ssim": 0.8006502509617515
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 37.91394006045262,
+     "ssim": 0.9544147960932949
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 25.747348819374288,
+     "ssim": 0.7915506992030211
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 36.51873333281411,
+   "ssim_mean": 0.9134153539264859,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 41.93110699226277,
+     "ssim": 0.9662703856708754
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 29.69326409404683,
+     "ssim": 0.9333793859371802
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.54796616345995,
+     "ssim": 0.9565757991692724
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.806261343625216,
+     "ssim": 0.9450935466164613
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 30.6215917781606,
+     "ssim": 0.9529215907646346
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 32.75498082618218,
+     "ssim": 0.9419463295990447
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 37.83058648649843,
+     "ssim": 0.9393097906521795
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 36.65228082837946,
+     "ssim": 0.9225185246462922
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 47.88336805480283,
+     "ssim": 0.9892381656652218
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 39.75927007710769,
+     "ssim": 0.9607276155223746
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 41.23364087362147,
+     "ssim": 0.9705995131236782
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 42.550656231278545,
+     "ssim": 0.9686850823572238
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 41.47454063787026,
+     "ssim": 0.9780843192445631
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 40.98394452491341,
+     "ssim": 0.9710385883036521
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 40.41011877096962,
+     "ssim": 0.9516703276149234
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 40.23837309492703,
+     "ssim": 0.9567615337199379
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 40.63993002878891,
+     "ssim": 0.9571457072578675
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 43.4558466009417,
+     "ssim": 0.9809804644403508
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 44.84629972495503,
+     "ssim": 0.9868269902896122
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 34.026424249578355,
+     "ssim": 0.8189364425280152
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 33.24471185944675,
+     "ssim": 0.7959800701931709
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 34.17112548230306,
+     "ssim": 0.8790040791488156
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 34.93530693464586,
+     "ssim": 0.9302818264396779
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 33.516774441593824,
+     "ssim": 0.8724493363382045
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 34.77223947925906,
+     "ssim": 0.8088365894818945
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 34.35852255029091,
+     "ssim": 0.8102570564004392
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 36.828581303647624,
+     "ssim": 0.9117957242495319
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 34.12828136436458,
+     "ssim": 0.8501766828078796
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 39.47424917178487,
+     "ssim": 0.9374413065185101
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 38.43174091112837,
+     "ssim": 0.9260636919181241
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 38.42218804819498,
+     "ssim": 0.930750470991801
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 39.444242265012015,
+     "ssim": 0.9509688176404804
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 39.55327989059075,
+     "ssim": 0.9487648233409115
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 36.855843059825666,
+     "ssim": 0.9269204318899553
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 38.067677480638274,
+     "ssim": 0.9239372586462323
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 38.041394527361724,
+     "ssim": 0.9248524095549023
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 35.33619765389177,
+     "ssim": 0.8619475014713783
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 35.60728457523365,
+     "ssim": 0.9102317500297011
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 37.458799315052474,
+     "ssim": 0.8913964284760454
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 37.48742506449514,
+     "ssim": 0.8780088668270135
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 34.926090712317944,
+     "ssim": 0.8210032081738153
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 35.1345784168537,
+     "ssim": 0.8150679398303072
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 36.63196472203953,
+     "ssim": 0.9133031934603665
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 32.642972191227706,
+     "ssim": 0.9437148064721184
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 34.84305026020988,
+     "ssim": 0.9492457058200491
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 28.1194601850337,
+     "ssim": 0.9168931376453937
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 34.926090712317944,
+     "ssim": 0.8210032081738153
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 29.72537290807191,
+     "ssim": 0.817616050946558
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.402046207516207,
+     "ssim": 0.8550488190747477
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 42.39763683987633,
+     "ssim": 0.9719824259793027
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 29.229820056923252,
+     "ssim": 0.8405293291862775
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 3,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 36.518641607763804,
+   "ssim_mean": 0.9134219495699211,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 41.92669313891141,
+     "ssim": 0.966230074075972
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 29.69478357093086,
+     "ssim": 0.9333702654390729
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.548600272335953,
+     "ssim": 0.9565883936047888
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.805481352877994,
+     "ssim": 0.9450648417488954
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 30.62099668552473,
+     "ssim": 0.9529131886934313
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 32.75523460177871,
+     "ssim": 0.9419239165165132
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 37.82967100942412,
+     "ssim": 0.9392726814966655
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 36.65285065979954,
+     "ssim": 0.922540561725627
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 47.87911009503695,
+     "ssim": 0.9892370767611176
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 39.75694303224343,
+     "ssim": 0.9607021771530819
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 41.23382269180236,
+     "ssim": 0.970621304549307
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 42.54640754144367,
+     "ssim": 0.9686513378330838
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 41.469240446957265,
+     "ssim": 0.9780387703614137
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 40.981836948377804,
+     "ssim": 0.9710193528099089
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 40.40902716993828,
+     "ssim": 0.9516567510994953
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 40.238782480414265,
+     "ssim": 0.9567747518957175
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 40.63776207858537,
+     "ssim": 0.9571294853919087
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 43.454316822158425,
+     "ssim": 0.9809556657825883
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 44.840591392925084,
+     "ssim": 0.9868170713977207
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 34.027173947936035,
+     "ssim": 0.8189830018899767
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 33.244956799268095,
+     "ssim": 0.7960084473823202
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 34.17028965293131,
+     "ssim": 0.8789675227605578
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 34.935227181753035,
+     "ssim": 0.9303038171566408
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 33.51886823081838,
+     "ssim": 0.8724867205904459
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 34.77386771763002,
+     "ssim": 0.8088896648501632
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 34.3586492833605,
+     "ssim": 0.8102494727566594
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 36.829667357413285,
+     "ssim": 0.9118323505870466
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 34.12929290600309,
+     "ssim": 0.8502167903257711
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 39.47345656784243,
+     "ssim": 0.9374141264152551
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 38.42808531056321,
+     "ssim": 0.9260300564933952
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 38.42259998064228,
+     "ssim": 0.9307305136486728
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 39.4420628228906,
+     "ssim": 0.9509192332408662
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 39.55384987000307,
+     "ssim": 0.9487615183476059
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 36.85932769165673,
+     "ssim": 0.9269949663793052
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 38.06510750530159,
+     "ssim": 0.9238932100253694
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 38.04228080492549,
+     "ssim": 0.9248189190232995
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 35.336495641058875,
+     "ssim": 0.8619565539505771
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 35.60967557185798,
+     "ssim": 0.91027692845502
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 37.46169739291109,
+     "ssim": 0.8914658951291876
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 37.494775706383386,
+     "ssim": 0.8781794231554292
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 34.92569414675196,
+     "ssim": 0.8209736613462201
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 35.13557427799812,
+     "ssim": 0.8150976332218602
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 36.63328181951194,
+     "ssim": 0.9133450798139526
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 32.644033856769404,
+     "ssim": 0.9437613626437745
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 34.84452120211933,
+     "ssim": 0.9492890371607601
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 28.119736079124642,
+     "ssim": 0.9169324150004561
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 34.92569414675196,
+     "ssim": 0.8209736613462201
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 29.72805780449342,
+     "ssim": 0.8175901722444281
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.403311947511988,
+     "ssim": 0.8550440011003367
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 42.398335743418436,
+     "ssim": 0.9719890199574298
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 29.232921036886182,
+     "ssim": 0.8406365833306633
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "bicubic",
+   "precision": "uint8",
+   "device": "cuda",
+   "psnr_mean": 33.79296275811463,
+   "ssim_mean": 0.8783064013917897,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 38.69756656070678,
+     "ssim": 0.9419668725781619
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 28.00342237357711,
+     "ssim": 0.8845483095827343
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.115284126567108,
+     "ssim": 0.9329412784488154
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.31380434987341,
+     "ssim": 0.9181154470121411
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 28.400939816180284,
+     "ssim": 0.9216800673309791
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 32.737150536554005,
+     "ssim": 0.9074225540040516
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 34.731175275036236,
+     "ssim": 0.8919348886417243
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 34.11115341010166,
+     "ssim": 0.88380479838922
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 43.39962250267582,
+     "ssim": 0.9779782873316136
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 36.32344582064881,
+     "ssim": 0.9346003227109584
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 37.68466187723597,
+     "ssim": 0.9499808893060296
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 39.4624787067294,
+     "ssim": 0.9522070668410323
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 38.14605803925139,
+     "ssim": 0.9632381053438598
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 37.314374931655,
+     "ssim": 0.9451332360634094
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 37.223577599983585,
+     "ssim": 0.9190958539261078
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 37.733558991767026,
+     "ssim": 0.9294138693296308
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 37.82406423962266,
+     "ssim": 0.9290662067455524
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 40.24834854653146,
+     "ssim": 0.9691243545076399
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 41.73310330076734,
+     "ssim": 0.9790630084523726
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 32.96695724050126,
+     "ssim": 0.7957866674046631
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 31.919730387724453,
+     "ssim": 0.7561670358210875
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 32.3697010859648,
+     "ssim": 0.8355708395202546
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 30.990592615365387,
+     "ssim": 0.9006145771993473
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 30.08460837169828,
+     "ssim": 0.811390380709258
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 33.17037213593774,
+     "ssim": 0.784517816259543
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 32.18087345355052,
+     "ssim": 0.7749206247576673
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 33.54332799280294,
+     "ssim": 0.8676046790992664
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 31.422135097808482,
+     "ssim": 0.8038384437220912
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 35.61308348417495,
+     "ssim": 0.8988785881666622
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 34.689005031364445,
+     "ssim": 0.8783889397391541
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 34.95231782845287,
+     "ssim": 0.8902239581831771
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 35.148430156644736,
+     "ssim": 0.9133535903823272
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 36.29167037910334,
+     "ssim": 0.9184439295597184
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 32.90130787236797,
+     "ssim": 0.8758075955849457
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 34.55663899395028,
+     "ssim": 0.8777499971833947
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 34.82182414929698,
+     "ssim": 0.8813543048808478
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 32.544098185058125,
+     "ssim": 0.8228808165070393
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 31.83774470300108,
+     "ssim": 0.852454614302091
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 35.16873757048206,
+     "ssim": 0.8570729761288095
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 35.36295178677423,
+     "ssim": 0.8463111855968412
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 32.91934509913433,
+     "ssim": 0.7915619514692415
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 33.50685254893813,
+     "ssim": 0.7835326298083863
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 33.01709023906184,
+     "ssim": 0.8550070835652398
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 27.931809874519416,
+     "ssim": 0.8862140046365036
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 30.150001345135134,
+     "ssim": 0.9091704130280434
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 26.941678827600736,
+     "ssim": 0.8570853685915243
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 32.91934509913433,
+     "ssim": 0.7915619514692415
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 28.50067483038826,
+     "ssim": 0.7745429318752255
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 27.356702066947246,
+     "ssim": 0.8128528576736839
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 38.338016456843306,
+     "ssim": 0.9508378814085717
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 28.119684748653697,
+     "ssim": 0.8066124202013861
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_rgb_pretrained",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 30.16510371716091,
+   "ssim_mean": 0.8272049576752293,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 35.466791391395944,
+     "ssim": 0.9109049233273198
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 26.02514091119296,
+     "ssim": 0.8386322213318924
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 27.440260164972106,
+     "ssim": 0.9036022728151414
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 25.727002673600595,
+     "ssim": 0.884996823377326
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 26.613086800214237,
+     "ssim": 0.8896043144014828
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 29.573057688705518,
+     "ssim": 0.8686680134001206
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 31.27848343156169,
+     "ssim": 0.8480420240644847
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 31.143068551090423,
+     "ssim": 0.838706121681095
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 40.31535918918337,
+     "ssim": 0.966063088678054
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 32.328492203487315,
+     "ssim": 0.8982091296265312
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 34.3362452774252,
+     "ssim": 0.9230406007879389
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 34.45342055183568,
+     "ssim": 0.9339587912076229
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 35.374270817423906,
+     "ssim": 0.9447516067796078
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 33.37924484874209,
+     "ssim": 0.9120945388971853
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 33.819155060931145,
+     "ssim": 0.8764343858606103
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 34.18974812137054,
+     "ssim": 0.891245523012814
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 34.36061935634917,
+     "ssim": 0.8923392346973877
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 36.26967655360884,
+     "ssim": 0.952848043475136
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 38.18938829617027,
+     "ssim": 0.9685403516335903
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 30.348653266010025,
+     "ssim": 0.7388816275261296
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 29.317161075180557,
+     "ssim": 0.6908755993066751
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 28.732853005090565,
+     "ssim": 0.782026535539272
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 25.141698139685747,
+     "ssim": 0.8482794895470853
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 25.26937368612614,
+     "ssim": 0.7275925640659153
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 29.634695695861755,
+     "ssim": 0.666232288831773
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 28.98186098142467,
+     "ssim": 0.7035716300407568
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 29.53925935884056,
+     "ssim": 0.8164716420340795
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 27.50065090086004,
+     "ssim": 0.7422973485033711
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 29.595969032069497,
+     "ssim": 0.8465280610569413
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 29.959937924565633,
+     "ssim": 0.818330394977725
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 31.337737785194424,
+     "ssim": 0.8505408470617581
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 30.3448176239176,
+     "ssim": 0.8643733884755042
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 31.623256336367376,
+     "ssim": 0.8742099576526822
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 27.84215958620759,
+     "ssim": 0.8081213557268638
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 29.88806643725493,
+     "ssim": 0.8204521066149383
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 31.43670693842077,
+     "ssim": 0.8365579220346854
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 29.288807659913697,
+     "ssim": 0.7537190448221237
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 26.614619808067008,
+     "ssim": 0.7727005606017572
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 32.298508058496644,
+     "ssim": 0.8086311820384768
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 32.873445741663254,
+     "ssim": 0.788890518668143
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 30.194185537815663,
+     "ssim": 0.7280334270434181
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 31.13361695835295,
+     "ssim": 0.7249903185175982
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 28.936492441187728,
+     "ssim": 0.7936885161596082
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 24.118603374722515,
+     "ssim": 0.8366107424668575
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 26.31828387707154,
+     "ssim": 0.8501717458995246
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 23.394994025851517,
+     "ssim": 0.7755999333160406
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 30.194185537815663,
+     "ssim": 0.7280334270434181
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 24.71845254559411,
+     "ssim": 0.6894698556866419
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 24.02487155637442,
+     "ssim": 0.7345488072166497
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 32.861986873642266,
+     "ssim": 0.911228511478423
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 24.671865916298717,
+     "ssim": 0.7131114824265146
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "psnr_mean": 34.49187234962458,
+   "ssim_mean": 0.8863277729689344,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 38.68895148862491,
+     "ssim": 0.9384110128422222
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 28.272482984737763,
+     "ssim": 0.8851227401278385
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.37881464217295,
+     "ssim": 0.9363273093178294
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.64875265786229,
+     "ssim": 0.9229867638763879
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 28.419087688787297,
+     "ssim": 0.9264878606949685
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 33.495910487661874,
+     "ssim": 0.9133613466193582
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 34.994302133534326,
+     "ssim": 0.8939681389663763
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 34.36214715378022,
+     "ssim": 0.8820654925624186
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 42.99304807875478,
+     "ssim": 0.9750987986728646
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 36.328539049890544,
+     "ssim": 0.9241142614058806
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 37.75978044851489,
+     "ssim": 0.945953545716898
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 40.59622068663229,
+     "ssim": 0.9578081498386779
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 38.21765802278843,
+     "ssim": 0.9590044118634997
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 37.53862630666238,
+     "ssim": 0.9435241303532962
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 37.15026961973762,
+     "ssim": 0.9135109740515815
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 37.609214286297814,
+     "ssim": 0.9237317563042113
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 37.66460058600589,
+     "ssim": 0.9235592080460023
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 40.55255316710911,
+     "ssim": 0.9693233407312344
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 42.08756616167711,
+     "ssim": 0.9793265607918304
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 33.66803950450375,
+     "ssim": 0.8105710492028027
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 32.35463973055652,
+     "ssim": 0.7596690914570655
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 33.36270725279268,
+     "ssim": 0.8521862190115282
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 31.826500923437525,
+     "ssim": 0.9105725731284829
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 30.966396471311434,
+     "ssim": 0.8174331099216461
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 33.968005359766565,
+     "ssim": 0.7973796660344272
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 33.405544346208764,
+     "ssim": 0.7969675013334263
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 34.31599151477463,
+     "ssim": 0.882151264466448
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 32.04862458085816,
+     "ssim": 0.8244795609976775
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 37.263760302522094,
+     "ssim": 0.9010896620642362
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 36.040334096938246,
+     "ssim": 0.8942518996201408
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 35.96551656883645,
+     "ssim": 0.8933608012608242
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 36.480356575849704,
+     "ssim": 0.9212816339274512
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 37.1742575692155,
+     "ssim": 0.9279186119526919
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 33.90542687160657,
+     "ssim": 0.8915602669564269
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 35.610111001074934,
+     "ssim": 0.8828603410748231
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 35.68054829817261,
+     "ssim": 0.889251759860004
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 33.48907261051894,
+     "ssim": 0.8326899543881631
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 33.236291392341684,
+     "ssim": 0.8771287540132517
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 35.97099209915204,
+     "ssim": 0.8727022381154842
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 36.43662042319403,
+     "ssim": 0.8604392028751233
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 33.84574006206777,
+     "ssim": 0.8089952067332689
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 34.6968061743379,
+     "ssim": 0.8080467479134539
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 34.10896842494594,
+     "ssim": 0.873764065001884
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 29.455672049723415,
+     "ssim": 0.8849727599524988
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 31.456442288259943,
+     "ssim": 0.9161443101362406
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 28.010654538919823,
+     "ssim": 0.8827078677370676
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 33.84574006206777,
+     "ssim": 0.8089952067332689
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 29.30617119165291,
+     "ssim": 0.8048115536349139
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.211286458816723,
+     "ssim": 0.8286095513339339
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 39.15780457479863,
+     "ssim": 0.9468498917291466
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 29.06194086039799,
+     "ssim": 0.829188296064473
+    }
+   ]
+  },
+  {
+   "set": "tno-lwir",
+   "scale": 4,
+   "degradation": "cv2_bicubic",
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "psnr_mean": 34.49269342844129,
+   "ssim_mean": 0.8863578576455932,
+   "n_images": 51,
+   "per_image": [
+    {
+     "image": "Athena_images/2_men_in_front_of_house/IR_meting003_g.bmp",
+     "psnr": 38.690506502886414,
+     "ssim": 0.9384505519562127
+    },
+    {
+     "image": "Athena_images/APC_1/view_1/IR_fk_06_005.bmp",
+     "psnr": 28.272521948783165,
+     "ssim": 0.8851180257838028
+    },
+    {
+     "image": "Athena_images/APC_1/view_2/IR_fk_ref_01_005.bmp",
+     "psnr": 29.379350007320145,
+     "ssim": 0.9363209376034405
+    },
+    {
+     "image": "Athena_images/APC_1/view_3/IR_fk_ref_02_005.bmp",
+     "psnr": 28.648264281575546,
+     "ssim": 0.9229875157520702
+    },
+    {
+     "image": "Athena_images/APC_3/view_1/IR_fk_bar_06_005.bmp",
+     "psnr": 28.418967668011035,
+     "ssim": 0.9264802700533239
+    },
+    {
+     "image": "Athena_images/APC_3/view_2/IR_fk_NL_01_005.bmp",
+     "psnr": 33.49590545250527,
+     "ssim": 0.9133428954773709
+    },
+    {
+     "image": "Athena_images/APC_3/view_3/IR_fk_NL_05_005.bmp",
+     "psnr": 34.992864012440734,
+     "ssim": 0.8939270461588095
+    },
+    {
+     "image": "Athena_images/APC_4/IR_fennek01_005.bmp",
+     "psnr": 34.36213483248582,
+     "ssim": 0.8820887634039735
+    },
+    {
+     "image": "Athena_images/airplane_in_trees/ir.bmp",
+     "psnr": 42.9943938617129,
+     "ssim": 0.9751129407653175
+    },
+    {
+     "image": "Athena_images/bunker/IR_bunker_g.bmp",
+     "psnr": 36.33199038242359,
+     "ssim": 0.9242129041379249
+    },
+    {
+     "image": "Athena_images/heather/IR_hei_vis_g.bmp",
+     "psnr": 37.76152839685801,
+     "ssim": 0.9460064228483587
+    },
+    {
+     "image": "Athena_images/helicopter/IR_helib_011.bmp",
+     "psnr": 40.596407270502425,
+     "ssim": 0.9578140698675742
+    },
+    {
+     "image": "Athena_images/lake/IR_lake_g.bmp",
+     "psnr": 38.21584684129378,
+     "ssim": 0.9589916306549716
+    },
+    {
+     "image": "Athena_images/man_in_doorway/IR_maninhuis_g.bmp",
+     "psnr": 37.541115634964534,
+     "ssim": 0.9435590365347807
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_1/IR_meting012-1200_g.bmp",
+     "psnr": 37.15179667884591,
+     "ssim": 0.9135505197903425
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_2/IR_meting012-1500_g.bmp",
+     "psnr": 37.608965368925105,
+     "ssim": 0.923737442650994
+    },
+    {
+     "image": "Athena_images/soldier_behind_smoke_3/IR_meting012-1700_g.bmp",
+     "psnr": 37.66765872328375,
+     "ssim": 0.9236197415289245
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_1/IR_meting016_g.bmp",
+     "psnr": 40.5513479613642,
+     "ssim": 0.9693250931535243
+    },
+    {
+     "image": "Athena_images/soldier_in_trench_2/IR_meting055_g.bmp",
+     "psnr": 42.083602197766155,
+     "ssim": 0.9793099136945779
+    },
+    {
+     "image": "DHV_images/bench/IR_37rad.bmp",
+     "psnr": 33.669609032868294,
+     "ssim": 0.8105824468855979
+    },
+    {
+     "image": "DHV_images/sandpath/IR_18rad.bmp",
+     "psnr": 32.35434655170286,
+     "ssim": 0.7596460085627066
+    },
+    {
+     "image": "DHV_images/wall/IR_163rad.bmp",
+     "psnr": 33.36299118788177,
+     "ssim": 0.8522961646825127
+    },
+    {
+     "image": "Triclobs_images/Bosnia/LWIR_B.bmp",
+     "psnr": 31.828319608419697,
+     "ssim": 0.9105870074219758
+    },
+    {
+     "image": "Triclobs_images/Farm/Farm_IR.bmp",
+     "psnr": 30.966472893305976,
+     "ssim": 0.8172591435455298
+    },
+    {
+     "image": "Triclobs_images/Kaptein_01/IR01.bmp",
+     "psnr": 33.969479770707956,
+     "ssim": 0.7974618806384095
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1123/Kaptein_1123_IR.bmp",
+     "psnr": 33.40572690497486,
+     "ssim": 0.7969415380753296
+    },
+    {
+     "image": "Triclobs_images/Kaptein_1654/Kaptein_1654_IR.bmp",
+     "psnr": 34.316259537979356,
+     "ssim": 0.8821460877984644
+    },
+    {
+     "image": "Triclobs_images/Kaptein_19/IR19.bmp",
+     "psnr": 32.048385254715285,
+     "ssim": 0.8244938133477449
+    },
+    {
+     "image": "Triclobs_images/Marne_01/Marne_01_IR.bmp",
+     "psnr": 37.26398882736095,
+     "ssim": 0.9011787863294324
+    },
+    {
+     "image": "Triclobs_images/Marne_02/Marne_02_IR.bmp",
+     "psnr": 36.043706002860816,
+     "ssim": 0.8943446102748115
+    },
+    {
+     "image": "Triclobs_images/Marne_03/Marne_03_IR.bmp",
+     "psnr": 35.966582511144615,
+     "ssim": 0.8934308585031945
+    },
+    {
+     "image": "Triclobs_images/Marne_04/Marne_04_IR.bmp",
+     "psnr": 36.48019996709966,
+     "ssim": 0.9212506567063217
+    },
+    {
+     "image": "Triclobs_images/Marne_06/Marne_06_IR.bmp",
+     "psnr": 37.17381764027867,
+     "ssim": 0.9279013252452784
+    },
+    {
+     "image": "Triclobs_images/Marne_07/Marne_07_IR.bmp",
+     "psnr": 33.90522388068143,
+     "ssim": 0.891558979691643
+    },
+    {
+     "image": "Triclobs_images/Marne_09/Marne_09_IR.bmp",
+     "psnr": 35.61036013478217,
+     "ssim": 0.8828729826261459
+    },
+    {
+     "image": "Triclobs_images/Marne_11/Marne_11_IR.bmp",
+     "psnr": 35.68193469789933,
+     "ssim": 0.8892740766116483
+    },
+    {
+     "image": "Triclobs_images/Marne_15/Marne_15_IR.bmp",
+     "psnr": 33.48994614498488,
+     "ssim": 0.8327222943587439
+    },
+    {
+     "image": "Triclobs_images/Marne_24/Marne_24_IR.bmp",
+     "psnr": 33.238517509064856,
+     "ssim": 0.8771897441087296
+    },
+    {
+     "image": "Triclobs_images/Movie_01/Movie_01_IR.bmp",
+     "psnr": 35.971349140322296,
+     "ssim": 0.8727128199787301
+    },
+    {
+     "image": "Triclobs_images/Movie_12/Movie_12_IR.bmp",
+     "psnr": 36.44204155145124,
+     "ssim": 0.8605568658279492
+    },
+    {
+     "image": "Triclobs_images/Movie_14/Movie_14_IR.bmp",
+     "psnr": 33.8466850271272,
+     "ssim": 0.809037162174009
+    },
+    {
+     "image": "Triclobs_images/Movie_18/Movie_18_IR.bmp",
+     "psnr": 34.69670523638126,
+     "ssim": 0.8080707620404797
+    },
+    {
+     "image": "Triclobs_images/Movie_24/Movie_24_IR.bmp",
+     "psnr": 34.11097367985356,
+     "ssim": 0.873871273483947
+    },
+    {
+     "image": "Triclobs_images/Reek/Reek_IR.bmp",
+     "psnr": 29.455991742819258,
+     "ssim": 0.885502682639101
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_1/B_LWIR.tif",
+     "psnr": 31.457331620684617,
+     "ssim": 0.9161324945756222
+    },
+    {
+     "image": "Triclobs_images/barbed_wire_2/c_LWIR-MarnehNew_24RGB_1110.tif",
+     "psnr": 28.01293868698702,
+     "ssim": 0.8827471685066133
+    },
+    {
+     "image": "Triclobs_images/houses_with_3_men/LWIR.bmp",
+     "psnr": 33.8466850271272,
+     "ssim": 0.809037162174009
+    },
+    {
+     "image": "Triclobs_images/jeep_in_smoke/LWIR_B.bmp",
+     "psnr": 29.30841792115002,
+     "ssim": 0.8048014444345197
+    },
+    {
+     "image": "Triclobs_images/soldier_behind_smoke/LWIR-MarnehNew_15RGB_603.tif",
+     "psnr": 28.213374438736594,
+     "ssim": 0.828609276618973
+    },
+    {
+     "image": "Triclobs_images/soldiers_with_jeep/Jeep_IR.bmp",
+     "psnr": 39.158667246887035,
+     "ssim": 0.9468619348858747
+    },
+    {
+     "image": "Triclobs_images/square_with_houses/LWIR.bmp",
+     "psnr": 29.06516744831667,
+     "ssim": 0.8292155653549126
+    }
+   ]
+  }
+ ],
+ "speed": [
+  {
+   "scale": 2,
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    256,
+    320
+   ],
+   "output_hw": [
+    512,
+    640
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 21.89616950636264,
+    "p95_ms": 22.258149801928084,
+    "mean_ms": 21.894032333123807,
+    "min_ms": 21.267388976411894,
+    "max_ms": 25.576866028131917,
+    "fps": 45.670088538062224,
+    "trial_medians_ms": [
+     21.5028,
+     21.7808,
+     22.007,
+     22.084,
+     22.0813
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 22.290003500529565,
+    "p95_ms": 22.50178275135113,
+    "mean_ms": 22.202375486978173,
+    "min_ms": 21.59298799233511,
+    "max_ms": 24.08708501025103,
+    "fps": 44.863160294086185,
+    "trial_medians_ms": [
+     21.772,
+     22.0737,
+     22.3246,
+     22.3605,
+     22.3667
+    ]
+   },
+   "peak_memory_mb": 538.2734375
+  },
+  {
+   "scale": 2,
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    256,
+    320
+   ],
+   "output_hw": [
+    512,
+    640
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 14.215147501090541,
+    "p95_ms": 14.333262755826581,
+    "mean_ms": 14.160666777538912,
+    "min_ms": 13.751366990618408,
+    "max_ms": 15.591401985147968,
+    "fps": 70.34749375082342,
+    "trial_medians_ms": [
+     13.8739,
+     14.0835,
+     14.2249,
+     14.2574,
+     14.2624
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 14.5950830046786,
+    "p95_ms": 14.746212963655125,
+    "mean_ms": 14.54634036127633,
+    "min_ms": 14.095265010837466,
+    "max_ms": 15.993966022506356,
+    "fps": 68.51622561375225,
+    "trial_medians_ms": [
+     14.2441,
+     14.4542,
+     14.6033,
+     14.6588,
+     14.6724
+    ]
+   },
+   "peak_memory_mb": 866.23046875
+  },
+  {
+   "scale": 3,
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    170,
+    213
+   ],
+   "output_hw": [
+    510,
+    639
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 10.58997401560191,
+    "p95_ms": 10.74114237271715,
+    "mean_ms": 10.569697707192972,
+    "min_ms": 10.201761993812397,
+    "max_ms": 12.042496004141867,
+    "fps": 94.42893802446807,
+    "trial_medians_ms": [
+     10.3246,
+     10.4999,
+     10.5977,
+     10.6527,
+     10.6976
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 10.769116488518193,
+    "p95_ms": 10.877974498725962,
+    "mean_ms": 10.728036594732353,
+    "min_ms": 10.395850986242294,
+    "max_ms": 12.172679009381682,
+    "fps": 92.85812824721313,
+    "trial_medians_ms": [
+     10.4899,
+     10.6435,
+     10.7738,
+     10.8316,
+     10.8423
+    ]
+   },
+   "peak_memory_mb": 2168.56640625
+  },
+  {
+   "scale": 3,
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    170,
+    213
+   ],
+   "output_hw": [
+    510,
+    639
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 6.9565945013891906,
+    "p95_ms": 7.030643502366729,
+    "mean_ms": 6.924910331319552,
+    "min_ms": 6.696226977510378,
+    "max_ms": 8.25591801549308,
+    "fps": 143.7484964518639,
+    "trial_medians_ms": [
+     6.7439,
+     6.8799,
+     6.9598,
+     6.9818,
+     7.014
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 7.309851498575881,
+    "p95_ms": 7.474767601524945,
+    "mean_ms": 7.298337066662498,
+    "min_ms": 7.04277798649855,
+    "max_ms": 8.692706003785133,
+    "fps": 136.80168471203854,
+    "trial_medians_ms": [
+     7.0879,
+     7.2307,
+     7.3126,
+     7.338,
+     7.4578
+    ]
+   },
+   "peak_memory_mb": 422.37158203125
+  },
+  {
+   "scale": 4,
+   "method": "imdn_thermal",
+   "precision": "fp32",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    128,
+    160
+   ],
+   "output_hw": [
+    512,
+    640
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 5.839066507178359,
+    "p95_ms": 6.1597805470228195,
+    "mean_ms": 5.873221884423401,
+    "min_ms": 5.625702993711457,
+    "max_ms": 7.047527993563563,
+    "fps": 171.26025174925348,
+    "trial_medians_ms": [
+     5.671,
+     5.7837,
+     5.8394,
+     5.8865,
+     6.1479
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 6.0007489955751225,
+    "p95_ms": 6.308818003162742,
+    "mean_ms": 6.060577184699166,
+    "min_ms": 5.782494990853593,
+    "max_ms": 7.958394999150187,
+    "fps": 166.64586383089636,
+    "trial_medians_ms": [
+     5.8217,
+     5.9365,
+     6.0003,
+     6.1765,
+     6.296
+    ]
+   },
+   "peak_memory_mb": 2140.5546875
+  },
+  {
+   "scale": 4,
+   "method": "imdn_thermal",
+   "precision": "fp16",
+   "device": "cuda",
+   "batch": 1,
+   "input_hw": [
+    128,
+    160
+   ],
+   "output_hw": [
+    512,
+    640
+   ],
+   "warmup_iters": 50,
+   "timed_iters": 300,
+   "trials": 5,
+   "model": {
+    "n": 1500,
+    "median_ms": 3.7802210135851055,
+    "p95_ms": 4.071743998792954,
+    "mean_ms": 3.8511643100452297,
+    "min_ms": 3.6103669845033437,
+    "max_ms": 5.003557977033779,
+    "fps": 264.5347974116505,
+    "trial_medians_ms": [
+     3.6579,
+     3.7209,
+     3.7704,
+     3.9774,
+     4.0523
+    ]
+   },
+   "end_to_end": {
+    "n": 1500,
+    "median_ms": 4.460228010430001,
+    "p95_ms": 4.785950458608568,
+    "mean_ms": 4.496357464406174,
+    "min_ms": 4.237820015987381,
+    "max_ms": 5.6685849849600345,
+    "fps": 224.20378457369318,
+    "trial_medians_ms": [
+     4.371,
+     4.4747,
+     4.4492,
+     4.4823,
+     4.5211
+    ]
+   },
+   "peak_memory_mb": 198.96240234375
+  }
+ ],
+ "skipped": [],
+ "speed_telemetry": {
+  "before_trial_1": {
+   "waited_s": 25.2,
+   "target_temp_c": 60,
+   "target_loadavg": 4.0,
+   "reached": true,
+   "telemetry": {
+    "temp_c": "38",
+    "sm_clock": "210 MHz",
+    "sm_clock_max": "2100 MHz",
+    "power_draw": "11.08 W",
+    "clock_limit_reasons": "0x0000000000000001",
+    "cpu_loadavg_1m": 3.92
+   }
+  },
+  "after_trial_1": {
+   "temp_c": "70",
+   "sm_clock": "1710 MHz",
+   "sm_clock_max": "2100 MHz",
+   "power_draw": "114.61 W",
+   "clock_limit_reasons": "0x0000000000000004",
+   "cpu_loadavg_1m": 3.2
+  },
+  "before_trial_2": {
+   "waited_s": 5.1,
+   "target_temp_c": 60,
+   "target_loadavg": 4.0,
+   "reached": true,
+   "telemetry": {
+    "temp_c": "59",
+    "sm_clock": "1560 MHz",
+    "sm_clock_max": "2100 MHz",
+    "power_draw": "33.01 W",
+    "clock_limit_reasons": "0x0000000000000000",
+    "cpu_loadavg_1m": 2.95
+   }
+  },
+  "after_trial_2": {
+   "temp_c": "80",
+   "sm_clock": "1695 MHz",
+   "sm_clock_max": "2100 MHz",
+   "power_draw": "114.92 W",
+   "clock_limit_reasons": "0x0000000000000004",
+   "cpu_loadavg_1m": 1.92
+  },
+  "before_trial_3": {
+   "waited_s": 30.3,
+   "target_temp_c": 60,
+   "target_loadavg": 4.0,
+   "reached": true,
+   "telemetry": {
+    "temp_c": "60",
+    "sm_clock": "210 MHz",
+    "sm_clock_max": "2100 MHz",
+    "power_draw": "13.36 W",
+    "clock_limit_reasons": "0x0000000000000001",
+    "cpu_loadavg_1m": 1.35
+   }
+  },
+  "after_trial_3": {
+   "temp_c": "86",
+   "sm_clock": "1650 MHz",
+   "sm_clock_max": "2100 MHz",
+   "power_draw": "114.36 W",
+   "clock_limit_reasons": "0x0000000000000004",
+   "cpu_loadavg_1m": 1.25
+  },
+  "before_trial_4": {
+   "waited_s": 80.7,
+   "target_temp_c": 60,
+   "target_loadavg": 4.0,
+   "reached": true,
+   "telemetry": {
+    "temp_c": "60",
+    "sm_clock": "210 MHz",
+    "sm_clock_max": "2100 MHz",
+    "power_draw": "13.45 W",
+    "clock_limit_reasons": "0x0000000000000001",
+    "cpu_loadavg_1m": 0.49
+   }
+  },
+  "after_trial_4": {
+   "temp_c": "86",
+   "sm_clock": "1500 MHz",
+   "sm_clock_max": "2100 MHz",
+   "power_draw": "100.52 W",
+   "clock_limit_reasons": "0x0000000000000020",
+   "cpu_loadavg_1m": 0.88
+  },
+  "before_trial_5": {
+   "waited_s": 136.2,
+   "target_temp_c": 60,
+   "target_loadavg": 4.0,
+   "reached": true,
+   "telemetry": {
+    "temp_c": "60",
+    "sm_clock": "210 MHz",
+    "sm_clock_max": "2100 MHz",
+    "power_draw": "13.44 W",
+    "clock_limit_reasons": "0x0000000000000001",
+    "cpu_loadavg_1m": 0.34
+   }
+  },
+  "after_trial_5": {
+   "temp_c": "87",
+   "sm_clock": "1440 MHz",
+   "sm_clock_max": "2100 MHz",
+   "power_draw": "96.48 W",
+   "clock_limit_reasons": "0x0000000000000020",
+   "cpu_loadavg_1m": 0.85
+  }
+ },
+ "elapsed_s": 540.2
+}
