@@ -143,6 +143,9 @@ THERMAL_WEIGHTS = {
     3: "_x3/thermal_best.pth",
     4: "x4/thermal_best.pth",
 }
+# Slim, state-dict-only copies made by benchmark/export_weights.py for
+# publishing; looked up in the weights directory if the checkpoint is absent.
+EXPORTED_WEIGHTS = "imdn_thermal_x{s}.pth"
 UPSTREAM_WEIGHTS = {s: f"pretrained/IMDN_x{s}.pth" for s in SCALES}
 UPSTREAM_WEIGHTS_URL = "https://github.com/Zheng222/IMDN/raw/master/checkpoints/IMDN_x{s}.pth"
 

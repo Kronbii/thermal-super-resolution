@@ -108,8 +108,11 @@ def thermal_imdn(
     else:
         path = weights_dir / P.THERMAL_WEIGHTS[scale]
         if not path.exists():
+            path = weights_dir / P.EXPORTED_WEIGHTS.format(s=scale)
+        if not path.exists():
             raise FileNotFoundError(
-                f"fine-tuned weights not found: {path}. They are not in git; see README "
+                f"fine-tuned x{scale} weights not found in {weights_dir} (looked for "
+                f"{P.THERMAL_WEIGHTS[scale]} and {path.name}). They are not in git; see README "
                 "'Reproduce'. Use --random-weights for a pipeline smoke test."
             )
         sd = load_state_dict(path)
