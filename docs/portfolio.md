@@ -13,8 +13,9 @@ dataset, at x2, x3 and x4. Its evaluation was then rebuilt so the numbers can
 be checked. A single protocol file defines the test images, how the
 low-resolution inputs are made, the metrics (verified against scikit-image)
 and a GPU-synchronised timing method. CI keeps the README equal to the
-benchmark output. Measured this way, the model gives a modest, consistent
-improvement over bicubic interpolation at real-time speed on a laptop GPU. The
+benchmark output. Measured this way, the model gives a modest PSNR
+improvement over bicubic interpolation at every scale, at real-time speed on a
+laptop GPU. The
 earlier, larger claims did not survive re-measurement and were withdrawn.
 
 <!-- BENCHMARK:HEADLINE:START -->
