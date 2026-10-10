@@ -448,6 +448,14 @@ OLD = {
 OLD_BICUBIC_X2 = {"psnr": "24.2", "ssim": "0.612"}
 
 
+LEGACY = P.REPO_ROOT / "results" / "legacy_timing.json"
+
+
+def load_legacy() -> dict | None:
+    """Notebook-style (unsynchronised) timing, kept only to explain the old figures."""
+    return json.loads(LEGACY.read_text()) if LEGACY.exists() else None
+
+
 def claims_table(results: dict) -> str:
     """Old README figures next to what the benchmark measures (repo17, protocol v1)."""
     if "repo17" not in results["test_sets"]:
@@ -465,6 +473,18 @@ def claims_table(results: dict) -> str:
         "Old timing used time.time() without torch.cuda.synchronize(), which measures "
         "kernel launches, not GPU work."
     )
+    legacy = load_legacy()
+    lo, hi = _s(results, 2, "fp32"), _s(results, 4, "fp32")
+    if legacy and lo and hi:
+        fps = {k: v["fps_as_reported"] for k, v in legacy["per_scale"].items()}
+        ratio = lo["model"]["median_ms"] / hi["model"]["median_ms"]
+        why_s += (
+            " Repeating the notebook's loop on this laptop (`python -m benchmark.legacy_timing`) "
+            "reports "
+            + ", ".join(f"x{k} {v:.0f} FPS" for k, v in sorted(fps.items()))
+            + f": nearly flat across scales, although the synchronised x2 forward pass costs "
+            f"{ratio:.1f}x the x4 one."
+        )
     for s in _scales(results):
         t = _q(results, "repo17", s, "imdn_thermal", "fp32")
         b = _q(results, "repo17", s, "bicubic")
