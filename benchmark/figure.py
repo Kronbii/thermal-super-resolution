@@ -129,7 +129,8 @@ def render(results: dict, out: Path = OUT) -> Path:
         f"Protocol v{results['protocol']['version']} (benchmark/protocol.py): OpenCV bicubic "
         "LR input, uint8 output, border crop = scale, mean of per-image PSNR.\n"
         f"Speed: {gpu}, PyTorch {env['torch'].split('+')[0]} eager, GPU-synchronised "
-        "timing, median of 5 interleaved trials. Labels above latency bars: FPS = 1000 / median.",
+        f"timing, median over {_s(results, scales[0], precs[0]).get('trials', 1)} interleaved "
+        "trials. Labels above latency bars: FPS = 1000 / median.",
         color=INK_3,
         fontsize=10,
         linespacing=1.5,
