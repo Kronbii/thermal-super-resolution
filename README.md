@@ -5,7 +5,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-11.8%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-First thermal super-resolution system to achieve **34.2 dB PSNR** at **229+ FPS** using novel IMDN architecture with specialized thermal adaptations. Outperforms existing methods while maintaining real-time inference speeds.
+An RGB-pretrained IMDN (Information Multi-Distillation Network) adapted to single-channel thermal imagery using a thermal-specific loss, FLIR ADAS v2, and custom-curated data. It reaches **34.2 dB PSNR / 0.840 SSIM** at ×2, **31.0 / 0.757** at ×3, and **29.6 / 0.713** at ×4, with FP16/INT8-optimized inference running at **~45 FPS on Jetson AGX Orin**.
 
 ## TL;DR: The Results
 
@@ -14,20 +14,22 @@ First thermal super-resolution system to achieve **34.2 dB PSNR** at **229+ FPS*
 | ![Before](results/showcase/_x2_showcase.png) | 2x |
 | ![Before](results/showcase/_x3_showcase.png) | 3x |
 
-## Performance Achievements
+## Results
 
-| Scale | PSNR | SSIM | Speed | Advancement |
-|:---:|:---:|:---:|:---:|:---:|
-| **2x** | **34.2 dB** | **0.840** | **270.6 FPS** | New SOTA for thermal SR |
-| **3x** | **31.0 dB** | **0.757** | **256.1 FPS** | 15x faster than competitors |
-| **4x** | **29.6 dB** | **0.713** | **250.9 FPS** | First real-time 4x thermal SR |
+| Scale | PSNR | SSIM |
+|:---:|:---:|:---:|
+| **2x** | **34.2 dB** | **0.840** |
+| **3x** | **31.0 dB** | **0.757** |
+| **4x** | **29.6 dB** | **0.713** |
 
-## Technical Innovations
+Inference was optimized with FP16/INT8 to **~45 FPS on Jetson AGX Orin**.
 
-- **Novel IMDN Adaptation**: First application of Information Multi-Distillation Network to thermal domain
+## Approach
+
+- **IMDN Backbone**: Information Multi-Distillation Network, pretrained on RGB
 - **Thermal-Aware Loss Function**: Multi-component loss preserving thermal gradients and contrast characteristics
-- **Cross-Domain Transfer**: Breakthrough method for adapting RGB pretrained models to single-channel thermal
-- **Efficiency Optimization**: Achieves 40x parameter reduction vs. competing methods with superior quality
+- **Cross-Domain Transfer**: RGB-pretrained weights adapted to single-channel thermal imagery
+- **Edge Inference**: FP16/INT8-optimized inference on Jetson AGX Orin
 
 ## Applications
 
@@ -69,25 +71,14 @@ thermal-super-resolution/
 ## Technical Details
 
 ### Model Specifications
-- **Parameters**: 688,636 (lightweight)
-- **Model Size**: 2.7 MB
 - **Input**: Single-channel thermal images
 - **Output**: Enhanced thermal images at 2x, 3x, or 4x resolution
 
 ### Training Configuration
-- **Dataset**: FLIR ADAS v2 thermal images
+- **Dataset**: FLIR ADAS v2 thermal images and custom-curated thermal data
 - **Loss Function**: Multi-component thermal-specific loss
 - **Optimization**: AdamW with cosine annealing
 - **Hardware**: CUDA-enabled GPU (8GB+ recommended)
-
-### Comparative Analysis
-| Method | PSNR (dB) | SSIM | Speed (FPS) | Parameters | Improvement |
-|--------|-----------|------|-------------|------------|-------------|
-| Bicubic | 24.2 | 0.612 | 1000+ | - | Baseline |
-| ESRGAN | 28.1 | 0.689 | 15.3 | 16.7M | - |
-| **This Work** | **34.2** | **0.840** | **229.6** | **0.69M** | **+6.1 dB, 15x faster** |
-
-> **Significance**: This represents the largest PSNR improvement in thermal super-resolution while achieving real-time performance with 24x fewer parameters than existing methods.
 
 ## License
 
