@@ -5,7 +5,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-11.8%2B-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An RGB-pretrained IMDN (Information Multi-Distillation Network) adapted to single-channel thermal imagery using a thermal-specific loss, FLIR ADAS v2, and custom-curated data. It reaches **34.2 dB PSNR / 0.840 SSIM** at ×2, **31.0 / 0.757** at ×3, and **29.6 / 0.713** at ×4, with FP16/INT8-optimized inference running at **~45 FPS on Jetson AGX Orin**.
+An RGB-pretrained IMDN (Information Multi-Distillation Network) adapted to single-channel thermal imagery using a thermal-specific loss, FLIR ADAS v2, and custom-curated data. It reaches **34.2 dB PSNR / 0.840 SSIM** at ×2, **31.0 / 0.757** at ×3, and **29.6 / 0.713** at ×4, running at **~130 FPS at ×2 and ~60 FPS at ×4 on an RTX 3070 laptop GPU**, and at **20–30 FPS on an NVIDIA Jetson Orin** onboard a drone with FP16/INT8 inference.
 
 ## TL;DR: The Results
 
@@ -22,14 +22,14 @@ An RGB-pretrained IMDN (Information Multi-Distillation Network) adapted to singl
 | **3x** | **31.0 dB** | **0.757** |
 | **4x** | **29.6 dB** | **0.713** |
 
-Inference was optimized with FP16/INT8 to **~45 FPS on Jetson AGX Orin**.
+On an RTX 3070 laptop GPU the model runs at ~130 FPS at ×2 and ~60 FPS at ×4. Optimized with FP16/INT8, it runs at 20–30 FPS on an NVIDIA Jetson Orin onboard a drone.
 
 ## Approach
 
 - **IMDN Backbone**: Information Multi-Distillation Network, pretrained on RGB
 - **Thermal-Aware Loss Function**: Multi-component loss preserving thermal gradients and contrast characteristics
 - **Cross-Domain Transfer**: RGB-pretrained weights adapted to single-channel thermal imagery
-- **Edge Inference**: FP16/INT8-optimized inference on Jetson AGX Orin
+- **Edge Inference**: FP16/INT8-optimized inference on NVIDIA Jetson Orin, for drones and ground robots
 
 ## Applications
 
